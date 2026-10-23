@@ -142,7 +142,9 @@ internal static class Kanon
         {
             var o = b.Alle[id];
             var fang = new Kanonfang(db, maskiert);
-            try { tr.GetObject(id, OpenMode.ForRead, false).DwgOut(fang); } catch (System.Exception) { fang.Tokens.Add("FEHLER"); }
+            // Instabile Klassen (räumlicher Index …) haben keinen verlässlichen Inhalt – Name nur aus der Klasse.
+            if (Instabil.Contains(o.Klasse)) fang.Tokens.Add("INSTABIL");
+            else try { tr.GetObject(id, OpenMode.ForRead, false).DwgOut(fang); } catch (System.Exception) { fang.Tokens.Add("FEHLER"); }
             var tokens = Normiere(o.Klasse, fang.Tokens).Select(t => t == "S" + o.Name ? "S*" : t);
             segment[id] = $"*{o.Name[1]}~{Sha(string.Join("|", tokens))[..10]}";
         }
