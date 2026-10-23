@@ -49,7 +49,10 @@ Nicht AVT: Symbolstile erzeugen/ändern (ASG), Stempel (ATT), Tabellen/Listen/Da
 
 ## Feste Regeln
 
-- Nie eine Zeichnung des Nutzers ändern oder speichern; nur Kopien in `C:\Temp\…`. EHS-Fassungen sind schreibgeschützt.
+- **Zeichnungen des Nutzers** (Nutzer 23.10.): AVT ändert eine Zeichnung des Nutzers nur nach Vorschau und ausdrücklicher
+  Bestätigung (Bereinigen in der Palette), legt vorher eine Sicherungskopie an und speichert nie selbst. Alles andere
+  (Bauläufe, Tests, Sonden) nur an Kopien in `C:\Temp\…`. EHS-Fassungen sind schreibgeschützt.
+- **Bereinigen-Vorgabe** (Nutzer 23.10.): vorab angehakt nur Einträge mit Fremdspur; Unbenutztes ohne Fremdspur nur anzeigen.
 - Kein pauschales PURGE in Vorlagen (unbenutzte Symbolstile gehören dazu).
 - Anzeigethemen zeigen per Zeiger auf Satzdefinitionen – vor dem Entfernen einer Definition den Verweisgraph prüfen.
 - Headless (accoreconsole) nur außerhalb eines MEP-Slots; MEP-Tests nur mit Slot von AMK; MEP 2025 nie anfassen.
