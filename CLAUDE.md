@@ -31,6 +31,12 @@ Nicht AVT: Symbolstile erzeugen/ändern (ASG), Stempel (ATT), Tabellen/Listen/Da
   `tools/AVT_bereinigen.ps1` (Ablauf + Nachprüfung Object-Enabler, bei Befund automatisch zweiter Durchgang),
   `tools/headless/run.ps1` (/isolate, ohne ASG-Plugin), `tools/avt_bericht.py` (Bericht + Vergleich), `tools/AVT_regression.ps1`.
   Regression 3 × gleich zu ASG EHS 0.1 und 0.2 (`C:\Temp\AVT\Regression\20261023_1309_*`). Fremd-Vorsilben nur beim Aufruf.
+- **0.2.0 Prüfen + Inhaltsauszug + API-Sonde** (23.10.2026): Projekt heißt `src/AVT.Werkzeug` (AVTKANON, AVTSONDE,
+  AVTSONDELESEN), `tools/AVT_kanon.ps1`, `AVT_pruefen.ps1` + `avt_pruefen.py`, `AVT_sonde.ps1`, `avt_gemeinsam.ps1`.
+  Kürzel „EHS“ nur in `Standard.cs`; Berichtszeilen „AVT…“. Inventur immer VOR AUDIT (AUDIT ändert Schraffuren).
+  Nachweis: 7 × EHS 0.2 → Prüfsumme f13fa95c. Handbuch `docs/AVT_Handbuch.md` + PDF (Modulfarbe Anthrazit #4A5662).
+- **Versionsplan** (AMK ok): 0.3.0 Plugin/Palette/Knopf + Bereinigen der offenen Zeichnung (Vorschau, Bestätigung,
+  Sicherungskopie, Einteilung a/b/c), 0.4.0 Erzeugen, 0.6.0 Release (DWGPROPS schreiben).
 - **Bauplan „grüne Wiese“** (Nutzer 23.10., `Schema\Bauplan_EHS.md`): AVT erzeugt die Vorlage aus Stammdaten – erst nach Auftrag AMK bauen.
 
 ## Feste Regeln

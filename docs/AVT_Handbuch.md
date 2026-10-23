@@ -140,7 +140,7 @@ GUIDs dynamischer Blöcke, Versionsstempel von AEC-Objekten, Nummern anonymer Bl
 nur mit ihrem Pfad, weil ihr Inhalt schon beim zweiten Lesen derselben Datei anders ausfällt.
 
 ```
-powershell -File tools\AVT_kanon.ps1 -Zeichnungen <dwg1>,<dwg2> -Arbeit C:\Temp\AVT\<Ordner> [-Audit]
+powershell -File tools\AVT_kanon.ps1 -Zeichnungen '<dwg1>;<dwg2>' -Arbeit C:\Temp\AVT\<Ordner> [-Audit]
 ```
 
 **Prüfen:** Inhaltsauszug einer Zeichnung, danach AUDIT (nur melden) und der Vergleich mit der Fassung. Der Auszug
@@ -155,7 +155,13 @@ Der Prüfbericht (`Pruefbericht_AVT.md`) zeigt:
 
 - Fassungsstempel der Zeichnung (Wörterbuch `EHS_Zeichnung`) oder „fehlt“,
 - die Zeichnungseigenschaften (DWGPROPS) und ob alle Pflichtfelder `EHS_…` gefüllt sind,
-- mit `-Soll`: Objekte, die fehlen, neu sind oder sich geändert haben, nach Klasse gruppiert.
+- Objekte, die AutoCAD nicht lesen konnte (Warnung – ihr Inhalt zählt nicht in der Prüfsumme),
+- mit `-Soll`: abweichende Kopfwerte (Einheiten, Plotstil-Art, Linientypfaktor), abweichende eigene DWGPROPS-Felder
+  (`EHS_…`) und Objekte, die fehlen, neu sind oder sich geändert haben, nach Klasse gruppiert.
+
+Rückgabe des Skripts: 0 = in Ordnung, 1 = Abweichungen oder Warnungen, 2 = Prüfen nicht möglich (Inventur fehlt oder
+ist unvollständig). Ausgaben früherer Läufe löscht AVT vor jedem Lauf; ein abgebrochener Lauf meldet sich als Fehler,
+nie als altes Ergebnis.
 
 ---
 
@@ -232,8 +238,9 @@ ab dem Erzeugen in `Stammdaten\Standard.csv`). Umschwenken bedeutet eine neue Ha
 - Die Inhaltsprüfsumme übergeht den Inhalt räumlicher Indizes und der DACH-Sanierungsstile (siehe Kapitel 4).
 - AUDIT meldet bei der Autodesk-Leervorlage „Aecb Model (D A CH Ctb) mm“ schon im Auslieferungszustand 2 Fehler
   (Listen-Definition „Standard“); diese stammen nicht von AVT.
-- Anonyme Einträge zählen im Inhaltsauszug nach ihrer Reihenfolge. Fällt einer weg, verschieben sich die folgenden und
-  erscheinen als „geändert“.
+- Namenlose und anonyme Einträge zählen im Inhaltsauszug nach ihrer Reihenfolge in der Zeichnung. Gleich gebaute
+  Zeichnungen vergleicht AVT sicher; wurde gleicher Inhalt in anderer Reihenfolge gebaut oder fällt ein Eintrag weg,
+  erscheinen die folgenden als „geändert“. Ab dem Erzeugen (0.4.0) ordnet AVT sie nach Inhalt.
 
 ---
 
