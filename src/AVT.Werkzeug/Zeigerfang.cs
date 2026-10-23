@@ -2,7 +2,7 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
 
-namespace Avt.Bereinigen;
+namespace Avt.Werkzeug;
 
 /// <summary>
 /// Fängt beim DwgOut eines Objekts alle Verweise auf andere Objekte (Zeiger und Besitz) und die Texte. So sieht man auch

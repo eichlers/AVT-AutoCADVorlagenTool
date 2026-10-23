@@ -6,8 +6,8 @@ using Autodesk.Aec.Building.DatabaseServices;
 using AcApp = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 using Aecp = Autodesk.Aec.PropertyData.DatabaseServices;
 
-[assembly: CommandClass(typeof(Avt.Bereinigen.Befehle))]
-namespace Avt.Bereinigen;
+[assembly: CommandClass(typeof(Avt.Werkzeug.Befehle))]
+namespace Avt.Werkzeug;
 
 /// <summary>
 /// AVTINVENTUR (nur lesen: Zahlen je Kategorie und der Entfernplan als Trockenlauf) und AVTBEREINIGEN (führt den Plan
@@ -20,7 +20,7 @@ public sealed class Befehle
     static bool UnterTemp(string pfad) => Path.IsPathFullyQualified(pfad)
         && Path.GetFullPath(pfad).StartsWith(Erlaubt, StringComparison.OrdinalIgnoreCase);
 
-    static string? Pfad(Editor ed, string frage)
+    internal static string? Pfad(Editor ed, string frage)
     {
         var p = ed.GetString($"\n{frage}: ").StringResult.Trim().Trim('"');
         if (UnterTemp(p)) return Path.GetFullPath(p);
@@ -39,7 +39,7 @@ public sealed class Befehle
     static string[] Themen(Editor ed) => ed.GetString(new PromptStringOptions("\nAnzeigethemen entfernen (Namen mit ;, - = keine): ") { AllowSpaces = true })
         .StringResult.Split([';', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Where(v => v != "-").ToArray();
 
-    static bool Testkopie(Document doc)
+    internal static bool Testkopie(Document doc)
     {
         if (UnterTemp(doc.Name)) return true;
         doc.Editor.WriteMessage($"\nAVT abgelehnt: {doc.Name} ist keine Kopie unter {Erlaubt}");
@@ -106,7 +106,7 @@ public sealed class Befehle
     }
 
     /// <summary>Ausgabe in die Datei; scheitert das, wenigstens das Ende in die Befehlszeile.</summary>
-    static void Ablegen(Editor ed, string datei, List<string> aus, string was)
+    internal static void Ablegen(Editor ed, string datei, List<string> aus, string was)
     {
         try
         {

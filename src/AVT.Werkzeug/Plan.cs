@@ -2,7 +2,7 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Runtime;
 using Aecp = Autodesk.Aec.PropertyData.DatabaseServices;
 
-namespace Avt.Bereinigen;
+namespace Avt.Werkzeug;
 
 /// <summary>
 /// Was beim Bereinigen der Vorlage wegkommt (Auftrag AMK/Nutzer 23.10.2026, EHS 0.1). Ausdrückliche Regeln, dazu alles,

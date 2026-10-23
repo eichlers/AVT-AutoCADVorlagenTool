@@ -1,14 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- AVT Bereinigen: Inventur und Bereinigen einer Zeichnungskopie nach dem Eichler-Hausstandard, nur headless über
+  <!-- AVT-Werkzeug: Bereinigen, kanonische Inventur, Prüfen, API-Sonde an Zeichnungskopien, nur headless über
        tools\AVT_bereinigen.ps1. Herkunft: ASG tools/ehs (095faa6 + e9f502d). Gebaut in den Arbeitsordner (Ausgabe),
        damit NETLOAD einen Pfad ohne Leerzeichen bekommt. -->
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <AssemblyName>AVT.Bereinigen</AssemblyName>
-    <RootNamespace>Avt.Bereinigen</RootNamespace>
-    <Version>0.1.0</Version>
+    <AssemblyName>AVT.Werkzeug</AssemblyName>
+    <RootNamespace>Avt.Werkzeug</RootNamespace>
+    <Version>0.2.0</Version>
     <Company>Eichler-GmbH</Company>
     <Copyright>© S. Eichler · Eichler-GmbH</Copyright>
     <Ausgabe Condition="'$(Ausgabe)' == ''">C:\Temp\AVT\werkzeug\</Ausgabe>

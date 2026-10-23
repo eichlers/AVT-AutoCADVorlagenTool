@@ -27,14 +27,14 @@ if (-not (Test-Path $Quelle)) { throw "Quelle fehlt: $Quelle" }
 # PowerShell -File uebergibt Arrays als einen Text mit Kommas.
 $FremdeWoerterbuecher = @($FremdeWoerterbuecher | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 $run = Join-Path $PSScriptRoot 'headless\run.ps1'
-$projekt = Join-Path $PSScriptRoot '..\src\AVT.Bereinigen\AVT.Bereinigen.csproj'
+$projekt = Join-Path $PSScriptRoot '..\src\AVT.Werkzeug\AVT.Werkzeug.csproj'
 New-Item -ItemType Directory -Force $Arbeit | Out-Null
 
 $werkzeug = Join-Path $Arbeit 'werkzeug'
 $build = Join-Path $Arbeit 'build.txt'
 dotnet build $projekt -c Release "-p:Ausgabe=$werkzeug\" -v q -nologo | Out-File -Encoding utf8 $build
-if ($LASTEXITCODE -ne 0) { throw "Build von AVT.Bereinigen fehlgeschlagen, siehe $build" }
-$dll = (Join-Path $werkzeug 'AVT.Bereinigen.dll') -replace '\\', '/'
+if ($LASTEXITCODE -ne 0) { throw "Build von AVT.Werkzeug fehlgeschlagen, siehe $build" }
+$dll = (Join-Path $werkzeug 'AVT.Werkzeug.dll') -replace '\\', '/'
 function P([string] $pfad) { $pfad -replace '\\', '/' }
 $fremd = if ($FremdeWoerterbuecher.Count -gt 0) { $FremdeWoerterbuecher -join ',' } else { '-' }
 $themenWeg = if ($Themen.Count -gt 0) { $Themen -join ';' } else { '-' }
