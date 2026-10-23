@@ -1,3 +1,4 @@
+using Avt.Kern;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -124,16 +125,9 @@ public sealed class Befehle
     /// </summary>
     static void RegAppsBereinigen(Database db, Plan plan, List<string> aus)
     {
-        var ids = new ObjectIdCollection(plan.Wurzeln.Where(w => w.Value is "Modul-Spur RegApp" or "RegApp ohne Benutzer")
-            .Select(w => w.Key).Where(i => !i.IsErased).ToArray());
-        var gewollt = ids.Cast<ObjectId>().ToList();
-        db.Purge(ids);
-        var frei = ids.Cast<ObjectId>().ToHashSet();
-        using var tr = db.TransactionManager.StartTransaction();
-        foreach (var id in frei) tr.GetObject(id, OpenMode.ForWrite).Erase();
-        tr.Commit();
-        foreach (var id in gewollt.Where(i => !frei.Contains(i))) aus.Add($"AVTRESTREGAPP {id.Handle} | Purge gibt sie nicht frei");
-        aus.Add($"AVTERGEBNIS RegApps gelöscht {frei.Count} von {gewollt.Count}");
+        var (frei, nichtFrei) = Entfernen.RegApps(db, plan.Wurzeln.Where(w => w.Value is "Modul-Spur RegApp" or "RegApp ohne Benutzer").Select(w => w.Key));
+        foreach (var id in nichtFrei) aus.Add($"AVTRESTREGAPP {id.Handle} | Purge gibt sie nicht frei");
+        aus.Add($"AVTERGEBNIS RegApps gelöscht {frei.Count} von {frei.Count + nichtFrei.Count}");
     }
 
     /// <summary>Zahlen für den Vorher/Nachher-Vergleich.</summary>
@@ -258,13 +252,8 @@ public sealed class Befehle
                 if (id.IsErased) continue;
                 try
                 {
-                    var o = tr.GetObject(id, OpenMode.ForWrite);
-                    if (grund is "Modul-Spur Wörterbuch" or "Fremd-Spur Wörterbuch" or "Anzeigethema auf Auftrag")
-                    {
-                        // Aus dem besitzenden Wörterbuch austragen (NOD oder Erweiterungswörterbuch), dann löschen.
-                        if (tr.GetObject(o.OwnerId, OpenMode.ForWrite) is DBDictionary halter) halter.Remove(id);
-                    }
-                    o.Erase();
+                    // Wörterbucheinträge aus dem besitzenden Wörterbuch austragen (NOD oder Erweiterungswörterbuch), dann löschen.
+                    Entfernen.Objekt(tr, id, ausWoerterbuch: grund is "Modul-Spur Wörterbuch" or "Fremd-Spur Wörterbuch" or "Anzeigethema auf Auftrag");
                     geloescht++;
                 }
                 catch (System.Exception ex) { fehler++; aus.Add($"AVTFEHLER {grund} {b.Text(id)}: {ex.GetBaseException().Message}"); }

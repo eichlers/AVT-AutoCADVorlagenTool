@@ -1,7 +1,7 @@
 using Autodesk.AutoCAD.DatabaseServices;
 using AecRec = Autodesk.Aec.DatabaseServices.DictionaryRecord;
 
-namespace Avt.Werkzeug;
+namespace Avt.Kern;
 
 /// <summary>Ein Objekt der Zeichnung mit Klasse, Besitzer, Name und den Verweisen, die es beim DwgOut schreibt.</summary>
 internal sealed record Objekt(ObjectId Id, string Klasse, ObjectId Besitzer, string Name, IReadOnlyList<ObjectId> Zeiger,

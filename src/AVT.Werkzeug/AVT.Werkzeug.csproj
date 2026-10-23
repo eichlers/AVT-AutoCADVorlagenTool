@@ -8,7 +8,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>AVT.Werkzeug</AssemblyName>
     <RootNamespace>Avt.Werkzeug</RootNamespace>
-    <Version>0.2.0</Version>
+    <Version>0.3.0</Version>
     <Company>Eichler-GmbH</Company>
     <Copyright>© S. Eichler · Eichler-GmbH</Copyright>
     <Ausgabe Condition="'$(Ausgabe)' == ''">C:\Temp\AVT\werkzeug\</Ausgabe>
@@ -16,6 +16,9 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <EnableDynamicLoading>true</EnableDynamicLoading>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AVT.Kern\AVT.Kern.csproj" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="AutoCAD.NET" Version="25.0.1" ExcludeAssets="runtime" />
     <Reference Include="AecBaseMgd"><HintPath>C:\Program Files\Autodesk\AutoCAD 2026\ACA\AecBaseMgd.dll</HintPath><Private>false</Private></Reference>

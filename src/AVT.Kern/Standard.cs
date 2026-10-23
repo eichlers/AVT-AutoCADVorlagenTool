@@ -1,4 +1,4 @@
-namespace Avt.Werkzeug;
+namespace Avt.Kern;
 
 /// <summary>
 /// Name des Hausstandards an EINER Stelle (Bauplan Abschnitt 12, Nutzer 23.10.2026: „EHS“ bleibt, muss aber umschwenkbar

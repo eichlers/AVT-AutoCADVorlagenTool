@@ -5,7 +5,7 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
 
-namespace Avt.Werkzeug;
+namespace Avt.Kern;
 
 /// <summary>Eine Zeile der kanonischen Inventur: fester Pfad, Klasse, Prüfsumme des Inhalts (und auf Wunsch der Inhalt).</summary>
 internal sealed record KanonZeile(string Pfad, string Klasse, string Pruefsumme, string? Inhalt, string Zustand);
@@ -91,7 +91,7 @@ internal static class Kanon
     /// Klasse nach Handle). Anonyme Blöcke (*U12, *D3 …) heißen *U#n, damit ihr wechselnder Name nicht zählt.
     /// Gleiche Pfade bekommen ~2, ~3 … angehängt.
     /// </summary>
-    static Dictionary<ObjectId, string> Pfade(Database db, Bestand b)
+    internal static Dictionary<ObjectId, string> Pfade(Database db, Bestand b)
     {
         var segment = new Dictionary<ObjectId, string>();
         foreach (var gruppe in b.Alle.Values.GroupBy(o => (o.Besitzer, o.Klasse, Anonym: AnonymeArt(o))))

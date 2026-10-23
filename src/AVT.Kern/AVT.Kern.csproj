@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- AVT-Kern: gemeinsame Logik fuer das Plugin (AVT.Mep) und die Werkzeuge ohne Oberflaeche (AVT.Werkzeug) –
+       Bestandsaufnahme, Verweisgraph, Entfernplan, Inhaltsauszug, Einteilung der Fremdinhalte. Nur accoremgd/acdbmgd
+       (laeuft auch in accoreconsole). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>AVT.Kern</AssemblyName>
+    <RootNamespace>Avt.Kern</RootNamespace>
+    <Version>0.3.0</Version>
+    <Company>Eichler-GmbH</Company>
+    <Copyright>© S. Eichler · Eichler-GmbH</Copyright>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="AVT.Werkzeug" />
+    <InternalsVisibleTo Include="AVT.Mep" />
+    <InternalsVisibleTo Include="AVT.Kern.Tests" />
+    <EmbeddedResource Include="Referenz\*.referenz.txt" LogicalName="AVT.Referenz.%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="AutoCAD.NET" Version="25.0.1" ExcludeAssets="runtime" />
+    <Reference Include="AecBaseMgd"><HintPath>C:\Program Files\Autodesk\AutoCAD 2026\ACA\AecBaseMgd.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="AecPropDataMgd"><HintPath>C:\Program Files\Autodesk\AutoCAD 2026\ACA\AecPropDataMgd.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="AecbBldSrvMgd"><HintPath>C:\Program Files\Autodesk\AutoCAD 2026\ACA\AecbBldSrvMgd.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>

@@ -1,3 +1,4 @@
+using Avt.Kern;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Runtime;
 using AcApp = Autodesk.AutoCAD.ApplicationServices.Core.Application;
