@@ -22,6 +22,10 @@ public sealed class BefehleFremd
         try
         {
             using var tr = doc.Database.TransactionManager.StartTransaction();
+            // Schnelle Vorprüfung wie beim leisen Hinweis (nur Namen) – mit Zeit, zum Beleg „kein Bremsen“.
+            var uhr = System.Diagnostics.Stopwatch.StartNew();
+            var (anzahl, referenz) = Fremdanalyse.Vorpruefung(doc.Database, tr, null);
+            aus.Add($"AVTFREMD Vorprüfung | {anzahl} Einträge nicht in {referenz} | {uhr.ElapsedMilliseconds} ms");
             Schreibe(Fremdanalyse.Lies(doc.Database, tr, null), aus, "AVTFREMD");
             tr.Commit();
             aus.Add("AVTENDE ok");
@@ -43,7 +47,9 @@ public sealed class BefehleFremd
             return;
         }
         // b-Funde als Ausnahme merken (wie „behalten“ in der Palette) – j/n.
-        var merken = doc.Editor.GetString("\nb-Funde als Ausnahme merken (j/n): ").StringResult.Trim().StartsWith("j", StringComparison.OrdinalIgnoreCase);
+        var antwort = doc.Editor.GetString(new Autodesk.AutoCAD.EditorInput.PromptStringOptions(Zeile("b-Funde als Ausnahme merken (j/n): ")));
+        if (antwort.Status != Autodesk.AutoCAD.EditorInput.PromptStatus.OK) return;
+        var merken = antwort.StringResult.Trim().StartsWith("j", StringComparison.OrdinalIgnoreCase);
         var db = doc.Database;
         var aus = new List<string>();
         try
@@ -55,7 +61,10 @@ public sealed class BefehleFremd
                 tr.Commit();
             }
             Schreibe(vorher, aus, "AVTFREMD vorher");
-            var alleA = vorher.Funde.Where(f => f.Gruppe == Gruppe.FremdUnbenutzt).Select(f => f.Kandidat.Pfad).ToList();
+            // Wie die Palette: nur, was dort vorab angehakt ist (a mit Fremdspur), mit Handle aus der Vorschau.
+            var alleA = vorher.Funde.Where(f => f.Gruppe == Gruppe.FremdUnbenutzt && f.Vorgabe)
+                .ToDictionary(f => f.Kandidat.Pfad, f => vorher.Objekte[f.Kandidat.Pfad].Handle.Value, StringComparer.Ordinal);
+            aus.Add($"AVTFREMD gewählt | a mit Fremdspur {alleA.Count} | a ohne Fremdspur (nicht angehakt) {vorher.Funde.Count(f => f.Gruppe == Gruppe.FremdUnbenutzt && !f.Vorgabe)}");
             var behalten = merken
                 ? vorher.Funde.Where(f => f.Gruppe == Gruppe.FremdBenutzt).ToDictionary(f => f.Kandidat.Pfad, _ => "behalten (Nachweis ohne Oberfläche)")
                 : new Dictionary<string, string>();
@@ -78,13 +87,16 @@ public sealed class BefehleFremd
 
     static void Schreibe(Analyse a, List<string> aus, string vorsilbe)
     {
+        aus.Add($"{vorsilbe} Lücke | {a.Luecke}");
         aus.Add($"{vorsilbe} Kopf | Fassung {a.Fassung ?? "keine"} | Referenz {a.Referenz.Fassung} ({a.Referenz.Herkunft}) | Objekte {a.Objektzahl} | Dauer {a.Dauer.TotalMilliseconds:F0} ms");
         aus.Add($"{vorsilbe} Kurz | {Einteilung.Kurzfassung(a.Funde) ?? "keine Fremdinhalte"}");
         foreach (var g in a.Funde.GroupBy(f => f.Gruppe))
             aus.Add($"{vorsilbe} Zahl | {g.Key} | {g.Count()}");
         foreach (var f in a.Funde)
-            aus.Add($"{vorsilbe} {Kennung(f.Gruppe)} | {f.Kandidat.Art} | {Kanon.Esc(f.Kandidat.Pfad)} | {Kanon.Esc(f.Grund)}");
+            aus.Add($"{vorsilbe} {Kennung(f.Gruppe)}{(f.Vorgabe ? "+" : "")} | {f.Kandidat.Art} | {Kanon.Esc(f.Kandidat.Pfad)} | {Kanon.Esc(f.Grund)}");
     }
+
+    static string Zeile(string text) => Environment.NewLine + text;
 
     static string Kennung(Gruppe g) => g switch { Gruppe.FremdUnbenutzt => "a", Gruppe.FremdBenutzt => "b", _ => "c" };
 }

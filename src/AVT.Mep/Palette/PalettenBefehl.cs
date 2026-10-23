@@ -122,7 +122,14 @@ public sealed class PalettenBefehl
     /// </summary>
     static void Ausklappen()
     {
-        System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle, new Action(() =>
+        // Wie ADM 0.9.24 (in MEP belegt): einmal im AutoCAD-Leerlauf (Application.Idle), dann Zweitprüfung nach 600 ms.
+        AcApp.Idle -= AusklappenImLeerlauf;
+        AcApp.Idle += AusklappenImLeerlauf;
+    }
+
+    static void AusklappenImLeerlauf(object? sender, EventArgs e)
+    {
+        AcApp.Idle -= AusklappenImLeerlauf;
         {
             try
             {
@@ -150,7 +157,7 @@ public sealed class PalettenBefehl
                 zweitpruefung.Start();
             }
             catch (System.Exception ex) { Protokoll.Merke("Fehler", $"Ausklappen: {ex.Message}"); }
-        }));
+        }
     }
 
     static void BeendenEinrichten()
@@ -164,7 +171,11 @@ public sealed class PalettenBefehl
             Protokoll.Merke("Beenden", $"QuitAborted – Palette war offen: {warOffenBeimBeenden}");
             beendet = false;
             // Nur den vorigen Zustand herstellen – nicht ausklappen (gemeinsame Regel).
-            if (warOffenBeimBeenden && palette != null) palette.Visible = true;
+            if (warOffenBeimBeenden && palette != null)
+            {
+                palette.Visible = true;
+                SymbolSetzen();   // MEP kann es beim Anzeigen zurücksetzen (ANA 0.9.19)
+            }
             warOffenBeimBeenden = false;
         });
     }

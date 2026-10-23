@@ -19,7 +19,11 @@ public enum Gruppe
 /// </summary>
 public sealed record Kandidat(string Pfad, string Art, string Name, IReadOnlyCollection<string> Benutzer, IReadOnlyList<string> Spuren);
 
-public sealed record Einordnung(Kandidat Kandidat, Gruppe Gruppe, string Grund);
+/// <summary>
+/// Ein eingeteilter Fund. <see cref="Vorgabe"/>: in der Vorschau vorab angehakt – nur bei a MIT Fremdspur; unbenutztes
+/// ohne Fremdspur (z. B. ein leerer Projekt-Layer) bleibt ohne Haken, sonst wäre es ein pauschales PURGE (Review 0.3.0).
+/// </summary>
+public sealed record Einordnung(Kandidat Kandidat, Gruppe Gruppe, string Grund, bool Vorgabe = false);
 
 /// <summary>
 /// Einteilung der Funde in a/b/c – ohne AutoCAD, damit sie sich prüfen lässt. Was zur Fassung gehört (Referenz),
@@ -31,7 +35,7 @@ public static class Einteilung
     static readonly HashSet<string> ImmerFremd = ["Satzdefinition", "Wörterbuch", "Fremdobjekt"];
 
     /// <summary>Vorsilben der Module (Sätze, Wörterbücher, RegApps, Layer) – gehören den Modulen, nie „fremd“.</summary>
-    static readonly string[] Module = ["ATT_", "ADM_", "ANA_", "ASG", "NA_", "AVT_", Standard.Kuerzel + "_"];
+    static readonly string[] Module = ["ATT_", "ADM_", "ANA_", "ASG", "AQT_", "NA_", "AVT_", Standard.Kuerzel + "_"];
 
     /// <summary>Vorsilben von AutoCAD/MEP-Einträgen im Wörterbuch der Zeichnung (entstehen bei Bedarf).</summary>
     static readonly string[] SystemWoerterbuch = ["ACAD_", "AEC", "AcAec", "AcDb", "AcadDim", "AbsT", "ASE_"];
@@ -87,7 +91,12 @@ public static class Einteilung
             weiter = false;
             foreach (var k in offen.Where(k => !unbenutzt.Contains(k.Pfad)))
             {
-                if (k.Benutzer.All(b => unbenutzt.Contains(b) || UnterPfad(b, k.Pfad))) { unbenutzt.Add(k.Pfad); weiter = true; }
+                // Benutzer ist meist ein Kind (z. B. die Einfügung in einem Block) – zählt, wenn der Block unbenutzt ist.
+                if (k.Benutzer.All(b => unbenutzt.Contains(b) || UnterPfad(b, k.Pfad) || Vorfahren(b).Any(unbenutzt.Contains)))
+                {
+                    unbenutzt.Add(k.Pfad);
+                    weiter = true;
+                }
             }
         } while (weiter);
 
@@ -97,7 +106,9 @@ public static class Einteilung
             var fremd = k.Spuren.Count > 0 || ImmerFremd.Contains(k.Art);
             var spuren = k.Spuren.Count > 0 ? string.Join("; ", k.Spuren) : $"{k.Art} gehört nicht zur Fassung";
             if (unbenutzt.Contains(k.Pfad))
-                aus.Add(new Einordnung(k, Gruppe.FremdUnbenutzt, $"{spuren}; unbenutzt"));
+                aus.Add(fremd
+                    ? new Einordnung(k, Gruppe.FremdUnbenutzt, $"{spuren}; unbenutzt", Vorgabe: true)
+                    : new Einordnung(k, Gruppe.FremdUnbenutzt, $"{spuren}; unbenutzt, ohne Fremdspur – nicht vorab angehakt"));
             else if (fremd)
                 aus.Add(new Einordnung(k, Gruppe.FremdBenutzt, $"{spuren}; benutzt von {k.Benutzer.Count}"));
             else

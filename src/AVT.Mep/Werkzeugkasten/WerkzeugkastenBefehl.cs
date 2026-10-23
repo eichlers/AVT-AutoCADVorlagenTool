@@ -188,9 +188,15 @@ public class WerkzeugkastenBefehl
 
     /// <summary>
     /// Symbol des AVT-Knopfs als Icon (16 und 32 px) für die Palette (AMK 20.10.2026) – dieselbe Zeichnung wie der
-    /// Werkzeugkasten. Gebaut als .ico im Speicher (PNG-Bilder): kein GDI-Handle, das gehalten oder freigegeben werden muss.
+    /// Werkzeugkasten. Gebaut als .ico im Speicher (PNG-Bilder), einmal je Sitzung.
     /// </summary>
-    internal static System.Drawing.Icon PalettenSymbol() => new(new MemoryStream(Ico(Knoepfe[0], 16, 32)));
+    internal static System.Drawing.Icon PalettenSymbol() => Symbol.Value;
+
+    // Einmal je Sitzung: new Icon(...) legt ein HICON an – nicht bei jedem Öffnen neu (Review 0.3.0).
+    static readonly Lazy<System.Drawing.Icon> Symbol = new(() => new System.Drawing.Icon(new MemoryStream(Ico(Knoepfe[0], 16, 32))));
+
+    /// <summary>Knopfsymbol als WPF-Bild (z. B. für das Zahnrad-Fenster) – ohne Icon-Handle.</summary>
+    internal static BitmapSource SymbolBild(int groesse) => Zeichnen(Knoepfe[0], groesse);
 
     // .ico-Aufbau: Kopf (0, Typ 1, Anzahl), je Bild ein Verzeichniseintrag (16 Byte), danach die PNG-Daten.
     static byte[] Ico(Knopf k, params int[] groessen)

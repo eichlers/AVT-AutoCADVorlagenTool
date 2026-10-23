@@ -31,7 +31,7 @@ internal static class Zahnrad
             Title = "AVT – Einstellungen und Version", Content = new ScrollViewer { Content = inhalt }, Width = 460, Height = 420,
             WindowStartupLocation = WindowStartupLocation.CenterScreen, ResizeMode = ResizeMode.CanResizeWithGrip, ShowInTaskbar = false,
         };
-        try { fenster.Icon = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(Werkzeugkasten.WerkzeugkastenBefehl.PalettenSymbol().Handle, Int32Rect.Empty, System.Windows.Media.Imaging.BitmapSizeOptions.FromEmptyOptions()); }
+        try { fenster.Icon = Werkzeugkasten.WerkzeugkastenBefehl.SymbolBild(32); }
         catch (Exception) { /* Symbol ist Beiwerk */ }
         Autodesk.AutoCAD.ApplicationServices.Application.ShowModalWindow(fenster);
     }

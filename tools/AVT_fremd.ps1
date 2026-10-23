@@ -20,7 +20,7 @@ $befehle = @('AVTFREMD', (P $vorschau))
 if ($Bereinigen) { $befehle += @('AVTFREMDBEREINIGEN', (P $bericht), (P $ziel), $(if ($AusnahmenMerken) { 'j' } else { 'n' })) }
 Lauf (Join-Path $Arbeit 'lauf1') $Quelle $dll $befehle @($vorschau, $bericht, $ziel)
 PruefeEnde $vorschau 'AVTENDE ok'
-Zeilen $vorschau | Where-Object { $_ -match '^AVTFREMD (Kopf|Kurz|Zahl)' }
+Zeilen $vorschau | Where-Object { $_ -match '^AVTFREMD (Vorpr|Kopf|Kurz|Zahl|L)' }
 if (-not $Bereinigen) { return }
 PruefeEnde $bericht 'AVTENDE ok'
 Zeilen $bericht | Where-Object { $_ -match '^AVTFREMD (Ergebnis|RegApps|FEHLER|nachher (Kurz|Zahl))' }

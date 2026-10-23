@@ -124,6 +124,8 @@ public sealed class AvtAnsicht : UserControl
             zeilen.Add($"Dauer: {a.Dauer.TotalSeconds:F1} s (Fremdinhalte)");
             tr.Commit();
             HinweisSetzen(doc, Einteilung.Kurzfassung(a.Funde));
+            Hinweis.Merken(doc, Einteilung.Kurzfassung(a.Funde));
+            if (a.Luecke > 0) zeilen.Add($"Achtung: {a.Luecke} Objekte nicht lesbar – Bereinigen entfernt in dieser Zeichnung nichts.");
         }
         bericht.Text = string.Join(Environment.NewLine, zeilen);
         Protokoll.Merke("Prüfen", string.Join(" | ", zeilen));
@@ -152,14 +154,22 @@ public sealed class AvtAnsicht : UserControl
             vorschauLeiste.Visibility = Visibility.Collapsed;
             return;
         }
-        Gruppenliste(Gruppe.FremdUnbenutzt, "a) Fremd und unbenutzt – wird entfernt (angehakt)", true, true);
-        Gruppenliste(Gruppe.FremdBenutzt, "b) Fremd und benutzt – bleibt; angehakt = als Ausnahme merken (Hinweis kommt nicht mehr)", true, false);
-        Gruppenliste(Gruppe.Projektinhalt, "c) Projektinhalt – nur Information", false, false);
+        // Unvollständiger Verweisgraph (nicht lesbare Objekte): nichts zum Entfernen anbieten (Review 0.3.0).
+        var luecke = letzte.Luecke > 0;
+        if (luecke)
+            vorschau.Children.Add(new TextBlock
+            {
+                Text = $"Achtung: {letzte.Luecke} Objekte ließen sich nicht lesen – AVT kann nicht sicher sagen, was unbenutzt ist, und entfernt nichts. Ausnahmen merken geht.",
+                TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DarkRed, Margin = new Thickness(0, 4, 0, 4),
+            });
+        Gruppenliste(Gruppe.FremdUnbenutzt, "a) Fremd und unbenutzt – angehakt wird entfernt (vorab angehakt: mit Fremdspur)", !luecke);
+        Gruppenliste(Gruppe.FremdBenutzt, "b) Fremd und benutzt – bleibt; angehakt = als Ausnahme merken (Hinweis kommt nicht mehr)", true);
+        Gruppenliste(Gruppe.Projektinhalt, "c) Projektinhalt – nur Information", false);
         vorschauLeiste.Visibility = funde.Any(f => f.Gruppe != Gruppe.Projektinhalt) ? Visibility.Visible : Visibility.Collapsed;
         bericht.Text = $"Vorschau {Path.GetFileName(doc.Name)}: {Einteilung.Kurzfassung(funde)} · Projektinhalt {Zahl(letzte, Gruppe.Projektinhalt)}. Noch nichts geändert.";
     }
 
-    void Gruppenliste(Gruppe gruppe, string titel, bool mitAuswahl, bool vorgabe)
+    void Gruppenliste(Gruppe gruppe, string titel, bool mitAuswahl)
     {
         var funde = letzte!.Funde.Where(f => f.Gruppe == gruppe).ToList();
         if (funde.Count == 0) return;
@@ -169,7 +179,8 @@ public sealed class AvtAnsicht : UserControl
             var text = $"{f.Kandidat.Art}: {f.Kandidat.Name} – {f.Grund}";
             if (mitAuswahl)
             {
-                var box = new CheckBox { Content = text, IsChecked = vorgabe, ToolTip = f.Kandidat.Pfad, Margin = new Thickness(0, 1, 0, 1) };
+                // a: vorab angehakt nur mit Fremdspur (Vorgabe); b: nie vorab.
+                var box = new CheckBox { Content = text, IsChecked = f.Gruppe == Gruppe.FremdUnbenutzt && f.Vorgabe, ToolTip = f.Kandidat.Pfad, Margin = new Thickness(0, 1, 0, 1) };
                 auswahl.Add((box, f));
                 liste.Children.Add(box);
             }
@@ -186,11 +197,24 @@ public sealed class AvtAnsicht : UserControl
     {
         var doc = Aktiv();
         if (doc == null || letzte == null) return;
-        var entfernen = auswahl.Where(x => x.Box.IsChecked == true && x.Fund.Gruppe == Gruppe.FremdUnbenutzt).Select(x => x.Fund.Kandidat.Pfad).ToList();
+        // Pfad UND Handle aus der Vorschau – entfernt wird nur, wenn beide noch passen (Review 0.3.0).
+        var entfernen = auswahl.Where(x => x.Box.IsChecked == true && x.Fund.Gruppe == Gruppe.FremdUnbenutzt)
+            .ToDictionary(x => x.Fund.Kandidat.Pfad, x => letzte.Objekte[x.Fund.Kandidat.Pfad].Handle.Value, StringComparer.Ordinal);
         var behalten = auswahl.Where(x => x.Box.IsChecked == true && x.Fund.Gruppe == Gruppe.FremdBenutzt)
             .ToDictionary(x => x.Fund.Kandidat.Pfad, _ => $"behalten (Nutzer, {DateTime.Now:dd.MM.yyyy})");
         if (entfernen.Count + behalten.Count == 0) { bericht.Text = "Nichts angehakt – nichts zu tun."; return; }
         // Sicherungskopie aus der gespeicherten Datei: ungespeicherte Änderungen wären nicht darin – darum vorher speichern lassen.
+        if (doc.IsReadOnly)
+        {
+            bericht.Text = "Die Zeichnung ist schreibgeschützt geöffnet – Bereinigen lohnt nicht, das Ergebnis ließe sich nicht speichern.";
+            return;
+        }
+        if (Hinweis.DateiWieGeoeffnet(doc) == false)
+        {
+            bericht.Text = "Die Datei wurde seit dem Öffnen von außen geändert (z. B. Synchronisierung) – die Sicherungskopie hätte einen "
+                + "anderen Stand. Bitte die Zeichnung neu öffnen und dann bereinigen.";
+            return;
+        }
         if (Convert.ToInt32(AcApp.GetSystemVariable("DBMOD")) != 0 || !File.Exists(doc.Name))
         {
             bericht.Text = "Die Zeichnung hat ungespeicherte Änderungen (oder ist noch nie gespeichert). Bitte zuerst speichern – "
@@ -207,14 +231,18 @@ public sealed class AvtAnsicht : UserControl
         catch (System.Exception ex) { bericht.Text = $"Sicherungskopie nicht möglich – nichts geändert. {ex.Message}"; Protokoll.Merke("Fehler", bericht.Text); return; }
         zeilen.Add($"Sicherungskopie (Prüfsumme gleich): {sicherung}");
         Analyse nach;
+        bool fehler;
         using (doc.LockDocument())
         {
-            zeilen.AddRange(Fremdbereiniger.Ausfuehren(doc.Database, entfernen, behalten, null).Select(Lesbar));
+            var ergebnis = Fremdbereiniger.Ausfuehren(doc.Database, entfernen, behalten, null);
+            fehler = ergebnis.Any(z => z.StartsWith("AVTFREMD FEHLER", StringComparison.Ordinal));
+            zeilen.AddRange(ergebnis.Select(Lesbar));
             using var tr = doc.Database.TransactionManager.StartTransaction();
             nach = Fremdanalyse.Lies(doc.Database, tr, null);
             tr.Commit();
         }
         letzte = nach;
+        if (fehler) zeilen.Insert(1, "NICHTS ENTFERNT – siehe FEHLER unten. Die Zeichnung ist unverändert; die Sicherungskopie kann gelöscht werden.");
         zeilen.Add($"Nachprüfung: {Einteilung.Kurzfassung(nach.Funde) ?? "keine Fremdinhalte"} · Projektinhalt {Zahl(nach, Gruppe.Projektinhalt)}");
         zeilen.Add("Jetzt speichern (Strg+S) – AVT speichert nicht. Ist ein Zusatzprogramm geladen, kann es beim Speichern Einträge neu anlegen: "
             + "dann die Zeichnung im MEP-Profil ohne Zusatzprogramm neu öffnen und erneut bereinigen (der Hinweis zeigt es).");
@@ -223,7 +251,9 @@ public sealed class AvtAnsicht : UserControl
         Hinweis.Merken(doc, Einteilung.Kurzfassung(nach.Funde));
         bericht.Text = string.Join(Environment.NewLine, zeilen);
         Protokoll.Merke("Bereinigen", string.Join(" | ", zeilen));
-        doc.Editor.WriteMessage($"\nAVT: Bereinigt – {zeilen.Count - 3} Zeile(n) im Bericht der Palette. Sicherung: {sicherung}\n");
+        doc.Editor.WriteMessage(fehler
+            ? "\nAVT: Bereinigen abgebrochen – nichts entfernt (Bericht in der Palette).\n"
+            : $"\nAVT: Bereinigt – Bericht in der Palette. Sicherung: {sicherung}. Speichern Sie selbst.\n");
     }
 
     static string Lesbar(string zeile) => zeile.StartsWith("AVTFREMD ", StringComparison.Ordinal) ? zeile[9..] : zeile;
