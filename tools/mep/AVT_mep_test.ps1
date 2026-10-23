@@ -62,12 +62,12 @@ function PruefeEingabe {
     Schluss 2
 }
 function Warte([double] $sek) { for ($i = 0; $i -lt [Math]::Ceiling($sek * 4); $i++) { PruefeEingabe; Start-Sleep -Milliseconds 250 }; PruefeEingabe }
-function Com([scriptblock] $aufruf) {
-    for ($i = 0; $i -lt 30; $i++) {
+function Com([scriptblock] $aufruf, [int] $sek = 15) {
+    for ($i = 0; $i -lt $sek * 2; $i++) {
         PruefeEingabe
         try { return & $aufruf } catch [System.Runtime.InteropServices.COMException] { Warte 0.5 }
     }
-    throw 'AutoCAD antwortet nicht (COM 15 s lang abgelehnt)'
+    throw "AutoCAD antwortet nicht (COM $sek s lang abgelehnt)"
 }
 
 # --- UI-Automation im MEP-Prozess -------------------------------------------------------------------------------------
@@ -119,8 +119,15 @@ function Kopie([string] $quelle, [string] $name) {
     (Get-Item $ziel).IsReadOnly = $false
     $ziel
 }
+function EigeneOffene([string] $datei) {
+    foreach ($x in @($script:acad.Documents)) { if ($x.FullName -eq $datei) { return $x } }
+    $null
+}
 function Oeffne([string] $datei) {
-    $d = Com { $script:acad.Documents.Open($datei, $false) }
+    # Oeffnen einer grossen Kopie blockiert COM laenger als 15 s (Befund 23.10. 19:37) - darum 90 s; kommt die Antwort
+    # nicht, die Kopie trotzdem suchen, damit sie am Ende ohne Speichern geschlossen wird.
+    try { $d = Com { $script:acad.Documents.Open($datei, $false) } 90 }
+    catch { $d = Com { EigeneOffene $datei } 60; if ($d) { $script:eigene.Add($d) }; throw }
     $script:eigene.Add($d)
     Warte 3
     $d
