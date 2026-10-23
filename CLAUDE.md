@@ -25,6 +25,14 @@ Nicht AVT: Symbolstile erzeugen/ändern (ASG), Stempel (ATT), Tabellen/Listen/Da
 - Startpunkt Code: das EHS-Bereinigungsskript von ASG (`ASG-AutoCADSymbolGenerator\tools\ehs\`, Commit 095faa6 + Folgecommit) –
   Übernahme nach AVT mit ASG abstimmen.
 
+## Stand
+
+- **0.1.0 Bereinigen** (23.10.2026, aus ASG tools/ehs 095faa6 + e9f502d): `src/AVT.Bereinigen` (AVTINVENTUR, AVTBEREINIGEN),
+  `tools/AVT_bereinigen.ps1` (Ablauf + Nachprüfung Object-Enabler, bei Befund automatisch zweiter Durchgang),
+  `tools/headless/run.ps1` (/isolate, ohne ASG-Plugin), `tools/avt_bericht.py` (Bericht + Vergleich), `tools/AVT_regression.ps1`.
+  Regression 3 × gleich zu ASG EHS 0.1 und 0.2 (`C:\Temp\AVT\Regression\20261023_1309_*`). Fremd-Vorsilben nur beim Aufruf.
+- **Bauplan „grüne Wiese“** (Nutzer 23.10., `Schema\Bauplan_EHS.md`): AVT erzeugt die Vorlage aus Stammdaten – erst nach Auftrag AMK bauen.
+
 ## Feste Regeln
 
 - Nie eine Zeichnung des Nutzers ändern oder speichern; nur Kopien in `C:\Temp\…`. EHS-Fassungen sind schreibgeschützt.
