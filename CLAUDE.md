@@ -4,7 +4,7 @@ AVT pflegt den **Eichler-Hausstandard (EHS)** – die gemeinsame, saubere Zeichn
 Gestartet am 23.10.2026 auf Wunsch des Nutzers („dann bauen wir das als Modul auf“). © S. Eichler · Eichler-GmbH.
 GitHub: `eichlers/AVT-AutoCADVorlagenTool` (privat), Branch `main`. Sprache mit dem Nutzer: **Deutsch**. Koordination über **AMK** (Aufträge kommen von der AMK-Sitzung).
 
-@../AMK AutoCADModulKoordination/AMK_Stand.md
+@../AMK-AutoCADModulKoordination/AMK_Stand.md
 
 ## Aufgabe
 
@@ -22,7 +22,7 @@ Nicht AVT: Symbolstile erzeugen/ändern (ASG), Stempel (ATT), Tabellen/Listen/Da
 
 - Hausstandard (Daten, Fassungen, Regeln, Handbuch): `C:\Users\eichlers15\Meine Ablage\Vorlagen\CAD\CADStandardEichlerGmbH\Schema`
   (GitHub `eichlers/CADStandardEichlerGmbH-Schema`) – **gepflegt von AMK**; AVT liefert Ergebnisse an AMK, schreibt dort nicht selbst.
-- Startpunkt Code: das EHS-Bereinigungsskript von ASG (`ASG AutoCADSymbolGenerator\tools\ehs\`, Commit 095faa6 + Folgecommit) –
+- Startpunkt Code: das EHS-Bereinigungsskript von ASG (`ASG-AutoCADSymbolGenerator\tools\ehs\`, Commit 095faa6 + Folgecommit) –
   Übernahme nach AVT mit ASG abstimmen.
 
 ## Feste Regeln
