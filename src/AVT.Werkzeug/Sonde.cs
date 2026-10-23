@@ -26,10 +26,14 @@ public sealed class Sonde
         var doc = AcApp.DocumentManager.MdiActiveDocument;
         if (!Befehle.Testkopie(doc) || Befehle.Pfad(doc.Editor, "Ausgabedatei") is not { } datei
             || Befehle.Pfad(doc.Editor, "Ergebniszeichnung") is not { } ziel) return;
+        // Schritte, die ausgelassen werden (Teil des Namens, durch | getrennt, - = keiner) – zum Eingrenzen von AUDIT-Befunden.
+        var auslassen = doc.Editor.GetString(new Autodesk.AutoCAD.EditorInput.PromptStringOptions("\nAuslassen (| getrennt, - = keiner): ") { AllowSpaces = true })
+            .StringResult.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Where(v => v != "-").ToList();
         var db = doc.Database;
         var aus = new List<string>();
         void Versuch(string typ, Func<Transaction, string> tun)
         {
+            if (auslassen.Any(a => typ.Contains(a, StringComparison.OrdinalIgnoreCase))) { aus.Add($"AVTSONDE {typ} | ausgelassen |"); return; }
             using var tr = db.TransactionManager.StartTransaction();
             try { var d = tun(tr); tr.Commit(); aus.Add($"AVTSONDE {typ} | angelegt | {d}"); }
             catch (System.Exception ex) { tr.Abort(); aus.Add($"AVTSONDE {typ} | FEHLER | {ex.GetBaseException().GetType().Name}: {ex.GetBaseException().Message}"); }
@@ -49,6 +53,7 @@ public sealed class Sonde
         Versuch("Mehransichtsblock", tr => Mehransicht(db, tr));
         Versuch("Bauteiltabellenstil", tr => Bauteiltabelle(db, tr));
         Versuch("Anzeigethema neu (ohne Vorlage)", tr => ThemaNeu(db, tr));
+        Versuch("Anzeigethema Farbe", tr => ThemaFarbe(db, tr));
         Versuch("Anzeigethema als Kopie", tr => ThemaKopie(db, tr));
         Versuch("Anzeigesatz", tr => Anzeigesatz(db, tr));
         Versuch("Layout", _ => Layout(db));
@@ -101,9 +106,11 @@ public sealed class Sonde
     static string Tabellenstil(Database db, Transaction tr)
     {
         var d = (DBDictionary)tr.GetObject(db.TableStyleDictionaryId, OpenMode.ForWrite);
-        // Name und Formate erst nach dem Eintragen (vorher eOwnerNotSet, Sonde 23.10.2026); der Name ist der Schlüssel.
+        // Über PostTableStyleToDatabase eintragen: SetAt allein ergab 6 AUDIT-Fehler (Sonde 23.10.2026, Eingrenzung).
         var s = new TableStyle();
-        d.SetAt(P + "_Tabelle", s); tr.AddNewlyCreatedDBObject(s, true);
+        s.PostTableStyleToDatabase(db, P + "_Tabelle");
+        // Das Objekt selbst steht jetzt in der Zeichnung – der Transaktion bekannt machen (sonst bleibt es offen: eWasOpenForWrite).
+        tr.AddNewlyCreatedDBObject(s, true);
         s.Description = "Sonde";
         // Formate erst nach dem Eintragen (vorher eOwnerNotSet, Sonde 23.10.2026).
         s.SetTextHeight(2.5, (int)RowType.DataRow);
@@ -156,16 +163,21 @@ public sealed class Sonde
         f.SubSetDatabaseDefaults(db);
         f.Name = "Auto";
         f.Automatic = true;
-        // Quelle erst setzen, wenn das Feld in der Definition steht (die kennt die Klassen, für die sie gilt).
-        def.Definitions.Add(f);
-        var feld = def.Definitions.Cast<Aecp.PropertyDefinition>().First(x => x.Name == "Auto");
+        // Gültige Quellen je Klasse liefert die API; ohne gültige Quelle wird kein Feld angelegt (ein automatisches Feld
+        // ohne Quelle wäre ungültig).
         var versuche = new List<string>();
         foreach (var klasse in new[] { "AecbDbSchematicSymbol", "AecbDbSchematic" })
         {
-            try { feld.SetAutomaticData(klasse, "Handle"); versuche.Add($"{klasse}/Handle ok"); }
-            catch (System.Exception ex) { versuche.Add($"{klasse}/Handle {ex.GetBaseException().Message}"); }
+            var quellen = Aecp.PropertyDataServices.FindAutomaticSourceNames(klasse, db) ?? [];
+            versuche.Add($"{klasse}: {quellen.Length} Quellen ({string.Join(", ", quellen.Take(6))} …)");
+            var quelle = quellen.FirstOrDefault(q => q == "Handle") ?? quellen.FirstOrDefault();
+            if (quelle is null) continue;
+            f.SetAutomaticData(klasse, quelle);
+            versuche.Add($"gesetzt {klasse}/{quelle}");
         }
-        return $"{string.Join("; ", versuche)}; Quellen jetzt {feld.GetAutomaticData().Length}";
+        if (f.GetAutomaticData().Length == 0) return "keine gültige Quelle – Feld nicht angelegt; " + string.Join("; ", versuche);
+        def.Definitions.Add(f);
+        return string.Join("; ", versuche);
     }
 
     static string FeldFormel(Database db, Transaction tr)
@@ -328,20 +340,43 @@ public sealed class Sonde
         r.ComparisonOperator = AecDb.DisplayThemeRuleComparisonOperator.RuleComparisonOperatorEqualTo;
         r.Value = "x";
         k.Rules = r;
+        // Darstellung der Komponente: Farbe Rot (RGB), Linienstärke 0,50 mm.
         t.DisplayThemeComponents.Add(k);
+        return $"{t.DisplayThemeComponents.Count} Komponente, Regel {t.DisplayThemeComponents[0].Rules?.DisplayString}";
+    }
+
+    /// <summary>Farbe der Themen-Komponente in eigener Transaktion setzen (DisplayProperties ist beim Anlegen noch leer).</summary>
+    static string ThemaFarbe(Database db, Transaction tr)
+    {
+        var dict = new AecDb.DictionaryDisplayThemeStyle(db);
+        var t = (AecDb.DisplayThemeStyle)tr.GetObject(dict.GetAt(P + "_Thema_neu"), OpenMode.ForWrite);
+        var k = t.DisplayThemeComponents[0];
+        var dp = k.DisplayProperties;
+        if (dp is null) return "DisplayProperties auch nach dem Speichern der Komponente leer – Farbe nicht setzbar";
+        dp.Color = Color.FromRgb(200, 30, 30);
+        dp.LineWeight = LineWeight.LineWeight050;
         return $"{t.DisplayThemeComponents.Count} Komponente, Regel {t.DisplayThemeComponents[0].Rules?.DisplayString}";
     }
 
     static string ThemaKopie(Database db, Transaction tr)
     {
         var dict = new AecDb.DictionaryDisplayThemeStyle(db);
-        var vorlage = dict.Records.Cast<ObjectId>().Where(i => !i.IsErased)
-            .Select(i => (AecDb.DisplayThemeStyle)tr.GetObject(i, OpenMode.ForRead)).FirstOrDefault(x => !x.Name.StartsWith(P));
+        // Vorzugsweise ein Thema mit Komponenten (deren Darstellungseigenschaften sind gefüllt) – dann Farbe der Kopie ändern.
+        var themen = dict.Records.Cast<ObjectId>().Where(i => !i.IsErased)
+            .Select(i => (AecDb.DisplayThemeStyle)tr.GetObject(i, OpenMode.ForRead)).Where(x => !x.Name.StartsWith(P)).ToList();
+        var vorlage = themen.FirstOrDefault(x => x.DisplayThemeComponents.Count > 0) ?? themen.FirstOrDefault();
         if (vorlage is null) return "kein Thema als Vorlage in der Zeichnung";
         var kopie = (AecDb.DisplayThemeStyle)vorlage.Clone();
         dict.AddNewRecord(P + "_Thema_Kopie", kopie);
         tr.AddNewlyCreatedDBObject(kopie, true);
-        return $"Kopie von „{vorlage.Name}“, {kopie.DisplayThemeComponents.Count} Komponenten";
+        var farbe = "keine Komponente";
+        if (kopie.DisplayThemeComponents.Count > 0)
+        {
+            var dp = kopie.DisplayThemeComponents[0].DisplayProperties;
+            if (dp is null) farbe = "Komponente ohne Darstellungseigenschaften";
+            else { dp.Color = Color.FromRgb(200, 30, 30); farbe = "Farbe der 1. Komponente auf 200,30,30 gesetzt"; }
+        }
+        return $"Kopie von „{vorlage.Name}“, {kopie.DisplayThemeComponents.Count} Komponenten, {farbe}";
     }
 
     static string Anzeigesatz(Database db, Transaction tr)
@@ -433,7 +468,17 @@ public sealed class Sonde
             foreach (var n in new[] { P + "_Thema_neu", P + "_Thema_Kopie" }.Where(n => themen.Has(n, tr)))
             {
                 var t = (AecDb.DisplayThemeStyle)tr.GetObject(themen.GetAt(n), OpenMode.ForRead);
-                var regeln = t.DisplayThemeComponents.Cast<AecDb.DisplayThemeComponentBase>().Select(k => $"{k.Name}: {k.Rules?.DisplayString}");
+                var regeln = t.DisplayThemeComponents.Cast<AecDb.DisplayThemeComponentBase>().Select(k =>
+                {
+                    var r = k.Rules;
+                    var satzName = r is Aecp.DisplayThemeScheduleDataRule sr && !sr.PropertySetDefinitionId.IsNull
+                        ? ((AecDb.DictionaryRecord)tr.GetObject(sr.PropertySetDefinitionId, OpenMode.ForRead)).Name : "-";
+                    var feldId = r is Aecp.DisplayThemeScheduleDataRule sr2 ? sr2.PropertyDefinitionId : -1;
+                    var dp = k.DisplayProperties;
+                    return $"{k.Name}: Regel {r?.GetType().Name} Satz {satzName} Feld-Id {feldId} ({r?.PropertyName}) {r?.ComparisonOperator} „{r?.ValueAsString}“, "
+                        + $"Farbe {(dp is null ? "-" : dp.Color.ColorMethod + " " + dp.Color.ColorValue.R + "," + dp.Color.ColorValue.G + "," + dp.Color.ColorValue.B)}, "
+                        + $"Linienstärke {dp?.LineWeight}";
+                });
                 aus.Add($"AVTSONDELESEN Thema | {n} | {string.Join("; ", regeln)}");
             }
             var mvb = new AecDb.DictionaryMultiViewBlockDefinition(db);

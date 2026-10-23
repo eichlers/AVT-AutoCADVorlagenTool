@@ -31,6 +31,9 @@ public sealed class BefehleKanon
             aus.Add($"AVTKANON Unlesbar | {b.Unlesbar}");
             aus.AddRange(FassungLesen(doc.Database, tr).Select(f => $"AVTKANON Fassung | {f}"));
             aus.AddRange(DwgProps(doc.Database).Select(f => $"AVTKANON DWGPROPS | {f}"));
+            var vorhanden = DwgProps(doc.Database).Where(f => f.StartsWith('*') && !f.EndsWith(" = ")).Select(f => f[1..].Split(" = ")[0]).ToHashSet();
+            var fehlend = Standard.PflichtFelder.Where(f => !vorhanden.Contains(f)).ToList();
+            aus.Add($"AVTKANON Pflichtfelder | {(fehlend.Count == 0 ? "alle da" : "fehlt: " + string.Join(", ", fehlend))}");
             aus.Add($"AVTKANON Kopf | INSUNITS {(int)doc.Database.Insunits} | MEASUREMENT {(int)doc.Database.Measurement} | PSTYLEMODE {(doc.Database.PlotStyleMode ? 1 : 0)} | LTSCALE {doc.Database.Ltscale}");
             foreach (var z in zeilen)
             {

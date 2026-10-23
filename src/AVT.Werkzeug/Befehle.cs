@@ -111,11 +111,11 @@ public sealed class Befehle
         try
         {
             File.WriteAllLines(datei, aus);
-            ed.WriteMessage($"\nEHS {was}: {aus.Count} Zeilen in {datei}");
+            ed.WriteMessage($"\nAVT {was}: {aus.Count} Zeilen in {datei}");
         }
         catch (System.Exception ex)
         {
-            ed.WriteMessage($"\nEHS {was}: Ausgabe nicht schreibbar ({ex.Message}). Letzte Zeile: {aus.LastOrDefault()}");
+            ed.WriteMessage($"\nAVT {was}: Ausgabe nicht schreibbar ({ex.Message}). Letzte Zeile: {aus.LastOrDefault()}");
         }
     }
 
