@@ -44,7 +44,8 @@ Nicht AVT: Symbolstile erzeugen/ändern (ASG), Stempel (ATT), Tabellen/Listen/Da
   suchen kann“; Stammdaten\Textstile.csv (Rollen EHS_Text_18/25/35/50), Prüfen: andere Schrift (SHX, Kundenschrift) = Fehler,
   auch Legendenschrift der Anzeigethemen; Textstile der Leervorlage melden.
 - **Versionsplan** (AMK ok): 0.3.0 Plugin/Palette/Knopf + Bereinigen der offenen Zeichnung (Vorschau, Bestätigung,
-  Sicherungskopie, Einteilung a/b/c), 0.4.0 Erzeugen, 0.6.0 Release (DWGPROPS schreiben).
+  Sicherungskopie, Einteilung a/b/c), 0.4.0 Erzeugen, 0.6.0 Release (DWGPROPS schreiben). Release-Ziel ab EHS 1.0.0:
+  `Vorlagen\CAD\CADStandardEichlerGmbH\EHS` (neues Repo, nur Freigegebenes); `Schema` wird Archiv (Bauplan 18).
 - **Bauplan „grüne Wiese“** (Nutzer 23.10., `Schema\Bauplan_EHS.md`): AVT erzeugt die Vorlage aus Stammdaten – erst nach Auftrag AMK bauen.
 
 ## Feste Regeln
