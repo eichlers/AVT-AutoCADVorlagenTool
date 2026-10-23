@@ -13,11 +13,12 @@ $Arbeit = Arbeitsordner $Arbeit
 $dll = Baue $Arbeit
 $ziel = Join-Path $Arbeit 'sonde.dwg'
 if (Test-Path $ziel) { Remove-Item $ziel -Force }
-Lauf (Join-Path $Arbeit 'lauf1') $Quelle $dll @('AVTSONDE', (P (Join-Path $Arbeit 'sonde.txt')), (P $ziel), $Auslassen)
+Lauf (Join-Path $Arbeit 'lauf1') $Quelle $dll @('AVTSONDE', (P (Join-Path $Arbeit 'sonde.txt')), (P $ziel), $Auslassen) @((Join-Path $Arbeit 'sonde.txt'))
 PruefeEnde (Join-Path $Arbeit 'sonde.txt') 'AVTENDE ok'
 Lauf (Join-Path $Arbeit 'lauf2') $ziel $dll @('AVTKANON', (P (Join-Path $Arbeit 'kanon.txt')), 'AVT_Sonde',
-    'AVTSONDELESEN', (P (Join-Path $Arbeit 'lesen.txt')), '_AUDIT', '_N')
+    'AVTSONDELESEN', (P (Join-Path $Arbeit 'lesen.txt')), '_AUDIT', '_N') @((Join-Path $Arbeit 'kanon.txt'), (Join-Path $Arbeit 'lesen.txt'))
 PruefeEnde (Join-Path $Arbeit 'lesen.txt') 'AVTENDE ok'
+PruefeEnde (Join-Path $Arbeit 'kanon.txt') 'AVTENDE ok'
 Zeilen (Join-Path $Arbeit 'sonde.txt')
 Zeilen (Join-Path $Arbeit 'lesen.txt')
 (Get-Content (Join-Path $Arbeit 'lauf2\konsole.txt') | Where-Object { $_ -match 'Fehler gefunden' }) -join ' '

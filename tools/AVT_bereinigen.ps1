@@ -44,7 +44,9 @@ function Lauf([string] $ordner, [string] $dwg, [string[]] $befehle) {
     $kopie = Join-Path $ordner 'arbeit.dwg'
     Copy-Item $dwg $kopie -Force
     (Get-Item $kopie).IsReadOnly = $false
-    & $run -Zeichnung $kopie -Befehle (@("_NETLOAD $dll") + $befehle) | Out-File -Encoding utf8 (Join-Path $ordner 'konsole.txt')
+    $konsole = Join-Path $ordner 'konsole.txt'
+    & $run -Zeichnung $kopie -Befehle (@("_NETLOAD $dll") + $befehle) | Out-File -Encoding utf8 $konsole
+    if ((Get-Content $konsole -Raw) -match 'TIMEOUT|ACHTUNG|AVT abgelehnt') { throw "Lauf in $ordner nicht sauber (siehe $konsole)" }
 }
 
 function Zeilen([string] $datei) { [IO.File]::ReadAllLines($datei, [Text.Encoding]::UTF8) }
@@ -56,6 +58,8 @@ function PruefeEnde([string] $datei) {
 # Ein Durchgang: Quelle -> Ergebnis im Ordner $ziel, mit vorher/plan/nachher.
 function Durchgang([string] $ordner, [string] $quelle) {
     New-Item -ItemType Directory -Force $ordner | Out-Null
+    # Alte Ausgaben loeschen, damit nie ein frueheres Ergebnis als neues gilt (Review 23.10.2026).
+    foreach ($a in 'vorher.txt', 'plan.txt', 'nachher.txt', 'nachpruefung.txt') { $f = Join-Path $ordner $a; if (Test-Path $f) { Remove-Item $f -Force } }
     $ziel = Join-Path $ordner $Ergebnis
     $schritte = @('AVTINVENTUR', (P (Join-Path $ordner 'vorher.txt')), $fremd, $themenWeg)
     if (-not $Trocken) {

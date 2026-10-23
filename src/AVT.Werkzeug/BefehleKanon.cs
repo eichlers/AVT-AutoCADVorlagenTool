@@ -29,12 +29,17 @@ public sealed class BefehleKanon
             aus.Add($"AVTKANON Gesamt | {Kanon.Gesamt(zeilen)}");
             aus.Add($"AVTKANON Objekte | {zeilen.Count}");
             aus.Add($"AVTKANON Unlesbar | {b.Unlesbar}");
-            aus.AddRange(FassungLesen(doc.Database, tr).Select(f => $"AVTKANON Fassung | {f}"));
-            aus.AddRange(DwgProps(doc.Database).Select(f => $"AVTKANON DWGPROPS | {f}"));
-            var vorhanden = DwgProps(doc.Database).Where(f => f.StartsWith('*') && !f.EndsWith(" = ")).Select(f => f[1..].Split(" = ")[0]).ToHashSet();
-            var fehlend = Standard.PflichtFelder.Where(f => !vorhanden.Contains(f)).ToList();
+            // Objekte, deren Inhalt nicht zählt (Fehler beim Lesen, instabile Klassen) – Prüfen warnt bei Fehlern.
+            aus.Add($"AVTKANON Fehler | {zeilen.Count(z => z.Zustand == "fehler")}");
+            aus.Add($"AVTKANON Instabil | {zeilen.Count(z => z.Zustand == "instabil")}");
+            foreach (var z in zeilen.Where(z => z.Zustand == "fehler")) aus.Add($"AVTKANON FehlerObjekt | {z.Pfad} | {z.Klasse}");
+            aus.AddRange(FassungLesen(doc.Database, tr).Select(f => $"AVTKANON Fassung | {Kanon.Esc(f)}"));
+            aus.Add($"AVTKANON Feldpraefix | {Standard.Feld}");
+            aus.AddRange(DwgProps(doc.Database).Select(f => $"AVTKANON DWGPROPS | {Kanon.Esc(f)}"));
+            var fehlend = FehlendePflichtfelder(doc.Database);
             aus.Add($"AVTKANON Pflichtfelder | {(fehlend.Count == 0 ? "alle da" : "fehlt: " + string.Join(", ", fehlend))}");
-            aus.Add($"AVTKANON Kopf | INSUNITS {(int)doc.Database.Insunits} | MEASUREMENT {(int)doc.Database.Measurement} | PSTYLEMODE {(doc.Database.PlotStyleMode ? 1 : 0)} | LTSCALE {doc.Database.Ltscale}");
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            aus.Add($"AVTKANON Kopf | INSUNITS {(int)doc.Database.Insunits} | MEASUREMENT {(int)doc.Database.Measurement} | PSTYLEMODE {(doc.Database.PlotStyleMode ? 1 : 0)} | LTSCALE {doc.Database.Ltscale.ToString("G12", inv)}");
             foreach (var z in zeilen)
             {
                 aus.Add($"{z.Pfad}\t{z.Klasse}\t{z.Pruefsumme}");
@@ -45,6 +50,18 @@ public sealed class BefehleKanon
         }
         catch (System.Exception ex) { aus.Add($"AVTENDE FEHLER {ex.GetBaseException().GetType().Name}: {ex.GetBaseException().Message}"); }
         Befehle.Ablegen(doc.Editor, datei, aus, "Kanon");
+    }
+
+    /// <summary>Pflichtfelder (benutzerdefinierte DWGPROPS), die fehlen oder leer sind – eine Stelle für Inventur und Sonde.</summary>
+    internal static List<string> FehlendePflichtfelder(Database db)
+    {
+        var gefuellt = new HashSet<string>(StringComparer.Ordinal);
+        var e = db.SummaryInfo.CustomProperties;
+        while (e.MoveNext())
+        {
+            if (!string.IsNullOrWhiteSpace(Convert.ToString(e.Value))) gefuellt.Add(Convert.ToString(e.Key) ?? "");
+        }
+        return Standard.PflichtFelder.Where(f => !gefuellt.Contains(f)).ToList();
     }
 
     /// <summary>DWGPROPS: Standardfelder und benutzerdefinierte Felder als „Feld = Wert“ (benutzerdefinierte mit Präfix „*“).</summary>

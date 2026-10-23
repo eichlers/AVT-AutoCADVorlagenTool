@@ -12,8 +12,8 @@ param(
 # Nie waehrend eines MEP-Slots starten.
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'avt_gemeinsam.ps1')
-# PowerShell -File uebergibt Arrays als einen Text mit Kommas.
-$Zeichnungen = @($Zeichnungen | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+# Mehrere Zeichnungen durch ; trennen (Pfade koennen Kommas enthalten). -File uebergibt Arrays als einen Text.
+$Zeichnungen = @($Zeichnungen | ForEach-Object { $_ -split ';' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 $Arbeit = Arbeitsordner $Arbeit
 $dll = Baue $Arbeit
 $detailText = if ($Detail) { $Detail } else { '-' }
@@ -25,7 +25,7 @@ foreach ($z in $Zeichnungen) {
     $aus = Join-Path $ordner 'kanon.txt'
     $vorweg = if ($Audit) { @('_AUDIT', '_N') } else { @() }
     # Inventur vor AUDIT: AUDIT berechnet Schraffuren neu, auch mit _N (Befund 23.10.2026).
-    Lauf $ordner $z $dll (@('AVTKANON', (P $aus), $detailText) + $vorweg)
+    Lauf $ordner $z $dll (@('AVTKANON', (P $aus), $detailText) + $vorweg) @($aus)
     PruefeEnde $aus 'AVTENDE ok'
     $gesamt = (Zeilen $aus | Where-Object { $_ -like 'AVTKANON Gesamt |*' }) -replace '^AVTKANON Gesamt \| ', ''
     $objekte = (Zeilen $aus | Where-Object { $_ -like 'AVTKANON Objekte |*' }) -replace '^AVTKANON Objekte \| ', ''

@@ -26,6 +26,14 @@ public sealed class Sonde
         var doc = AcApp.DocumentManager.MdiActiveDocument;
         if (!Befehle.Testkopie(doc) || Befehle.Pfad(doc.Editor, "Ausgabedatei") is not { } datei
             || Befehle.Pfad(doc.Editor, "Ergebniszeichnung") is not { } ziel) return;
+        // Ergebnis muss eine neue .dwg sein – nie die offene Kopie, nie die Ausgabedatei (Review 23.10.2026).
+        if (string.Equals(ziel, Path.GetFullPath(doc.Name), StringComparison.OrdinalIgnoreCase)
+            || string.Equals(ziel, datei, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(Path.GetExtension(ziel), ".dwg", StringComparison.OrdinalIgnoreCase))
+        {
+            doc.Editor.WriteMessage("\nAVT abgelehnt: Ergebniszeichnung muss eine neue .dwg sein.");
+            return;
+        }
         // Schritte, die ausgelassen werden (Teil des Namens, durch | getrennt, - = keiner) – zum Eingrenzen von AUDIT-Befunden.
         var auslassen = doc.Editor.GetString(new Autodesk.AutoCAD.EditorInput.PromptStringOptions("\nAuslassen (| getrennt, - = keiner): ") { AllowSpaces = true })
             .StringResult.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Where(v => v != "-").ToList();
@@ -35,7 +43,14 @@ public sealed class Sonde
         {
             if (auslassen.Any(a => typ.Contains(a, StringComparison.OrdinalIgnoreCase))) { aus.Add($"AVTSONDE {typ} | ausgelassen |"); return; }
             using var tr = db.TransactionManager.StartTransaction();
-            try { var d = tun(tr); tr.Commit(); aus.Add($"AVTSONDE {typ} | angelegt | {d}"); }
+            try
+            {
+                var d = tun(tr);
+                // „!…“ = nicht möglich: nichts behalten.
+                if (d.StartsWith('!')) { tr.Abort(); aus.Add($"AVTSONDE {typ} | nicht möglich | {d[1..]}"); return; }
+                tr.Commit();
+                aus.Add($"AVTSONDE {typ} | angelegt | {d}");
+            }
             catch (System.Exception ex) { tr.Abort(); aus.Add($"AVTSONDE {typ} | FEHLER | {ex.GetBaseException().GetType().Name}: {ex.GetBaseException().Message}"); }
         }
         Versuch("Layer", tr => Layer(db, tr));
@@ -108,7 +123,7 @@ public sealed class Sonde
         // Neu angelegt (new TableStyle, auch über PostTableStyleToDatabase) ergab 6 AUDIT-Fehler (Eingrenzung 23.10.2026).
         // Darum als Kopie des Tabellenstils „Standard“ der Zeichnung, dann ändern.
         var d = (DBDictionary)tr.GetObject(db.TableStyleDictionaryId, OpenMode.ForWrite);
-        if (!d.Contains("Standard")) return "kein Tabellenstil „Standard“ als Vorlage";
+        if (!d.Contains("Standard")) return "!kein Tabellenstil „Standard“ als Vorlage";
         var vorlage = (TableStyle)tr.GetObject(d.GetAt("Standard"), OpenMode.ForRead);
         var s = (TableStyle)vorlage.Clone();
         d.SetAt(P + "_Tabelle", s); tr.AddNewlyCreatedDBObject(s, true);
@@ -175,7 +190,7 @@ public sealed class Sonde
             f.SetAutomaticData(klasse, quelle);
             versuche.Add($"gesetzt {klasse}/{quelle}");
         }
-        if (f.GetAutomaticData().Length == 0) return "keine gültige Quelle – Feld nicht angelegt; " + string.Join("; ", versuche);
+        if (f.GetAutomaticData().Length == 0) return "!keine gültige Quelle – Feld nicht angelegt; " + string.Join("; ", versuche);
         def.Definitions.Add(f);
         return string.Join("; ", versuche);
     }
@@ -209,9 +224,9 @@ public sealed class Sonde
     {
         var dict = new AecDb.DictionaryLayerKeyStyle(db);
         var ids = dict.Records.Cast<ObjectId>().Where(i => !i.IsErased).ToList();
-        if (ids.Count == 0) return "kein vorhandener Stil";
+        if (ids.Count == 0) return "!kein vorhandener Stil";
         var s = ids.Select(i => (AecDb.LayerKeyStyle)tr.GetObject(i, OpenMode.ForWrite)).FirstOrDefault(x => !x.Name.StartsWith(P));
-        if (s is null) return "kein vorhandener (fremder) Layer-Schlüsselstil in der Zeichnung";
+        if (s is null) return "!kein vorhandener (fremder) Layer-Schlüsselstil in der Zeichnung";
         var vorher = s.KeyDefinitions.Count;
         s.KeyDefinitions.Add(new AecDb.LayerKeyDefinition { Key = "AVTSONDE2", LayerName = P + "_Layer2", Color = Color.FromColorIndex(ColorMethod.ByAci, 5) });
         return $"„{s.Name}“: {vorher} → {s.KeyDefinitions.Count} Schlüssel";
@@ -291,7 +306,7 @@ public sealed class Sonde
             ansicht = $"{reps.Count} Darstellungen verfügbar, „{((DBObject)tr.GetObject(reps[0], OpenMode.ForRead)).GetType().Name}“ mit Ansichtsblock belegt, "
                 + $"jetzt {m.DisplayRepresentationDefinitions.Count} Darstellung(en)";
         }
-        catch (System.Exception ex) { ansicht = $"Ansichtsblock nicht gesetzt ({ex.GetBaseException().GetType().Name}: {ex.GetBaseException().Message})"; }
+        catch (System.Exception ex) { throw new InvalidOperationException($"Ansichtsblock nicht gesetzt ({ex.GetBaseException().GetType().Name}: {ex.GetBaseException().Message})", ex); }
         return ansicht;
     }
 
@@ -352,7 +367,7 @@ public sealed class Sonde
         var t = (AecDb.DisplayThemeStyle)tr.GetObject(dict.GetAt(P + "_Thema_neu"), OpenMode.ForWrite);
         var k = t.DisplayThemeComponents[0];
         var dp = k.DisplayProperties;
-        if (dp is null) return "DisplayProperties auch nach dem Speichern der Komponente leer – Farbe nicht setzbar";
+        if (dp is null) return "!DisplayProperties auch nach dem Speichern der Komponente leer – Farbe nicht setzbar";
         dp.Color = Color.FromRgb(200, 30, 30);
         dp.LineWeight = LineWeight.LineWeight050;
         return $"{t.DisplayThemeComponents.Count} Komponente, Regel {t.DisplayThemeComponents[0].Rules?.DisplayString}";
@@ -365,7 +380,7 @@ public sealed class Sonde
         var themen = dict.Records.Cast<ObjectId>().Where(i => !i.IsErased)
             .Select(i => (AecDb.DisplayThemeStyle)tr.GetObject(i, OpenMode.ForRead)).Where(x => !x.Name.StartsWith(P)).ToList();
         var vorlage = themen.FirstOrDefault(x => x.DisplayThemeComponents.Count > 0) ?? themen.FirstOrDefault();
-        if (vorlage is null) return "kein Thema als Vorlage in der Zeichnung";
+        if (vorlage is null) return "!kein Thema als Vorlage in der Zeichnung";
         var kopie = (AecDb.DisplayThemeStyle)vorlage.Clone();
         dict.AddNewRecord(P + "_Thema_Kopie", kopie);
         tr.AddNewlyCreatedDBObject(kopie, true);
@@ -495,8 +510,7 @@ public sealed class Sonde
             }
             aus.AddRange(BefehleKanon.FassungLesen(db, tr).Select(f => $"AVTSONDELESEN Fassung | {f}"));
             aus.AddRange(BefehleKanon.DwgProps(db).Select(f => $"AVTSONDELESEN DWGPROPS | {f}"));
-            var vorhanden = BefehleKanon.DwgProps(db).Where(f => f.StartsWith('*')).Select(f => f[1..].Split(" = ")[0]).ToHashSet();
-            var fehlend = Standard.PflichtFelder.Where(f => !vorhanden.Contains(f)).ToList();
+            var fehlend = BefehleKanon.FehlendePflichtfelder(db);
             aus.Add($"AVTSONDELESEN DWGPROPS Pflicht | {(fehlend.Count == 0 ? "alle da" : "fehlt: " + string.Join(", ", fehlend))}");
             tr.Commit();
             aus.Add("AVTENDE ok");

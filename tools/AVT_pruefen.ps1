@@ -11,7 +11,7 @@ $ErrorActionPreference = 'Stop'
 $Arbeit = Arbeitsordner $Arbeit
 $dll = Baue $Arbeit
 $kanon = Join-Path $Arbeit 'kanon.txt'
-Lauf (Join-Path $Arbeit 'lauf') $Zeichnung $dll @('AVTKANON', (P $kanon), '-', '_AUDIT', '_N')
+Lauf (Join-Path $Arbeit 'lauf') $Zeichnung $dll @('AVTKANON', (P $kanon), '-', '_AUDIT', '_N') @($kanon)
 PruefeEnde $kanon 'AVTENDE ok'
 $argumente = @('-I', '-X', 'utf8', (Join-Path $PSScriptRoot 'avt_pruefen.py'), $kanon)
 if ($Soll) { $argumente += @('--soll', $Soll) }
