@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- AVT Bereinigen: Inventur und Bereinigen einer Zeichnungskopie nach dem Eichler-Hausstandard, nur headless über
+       tools\AVT_bereinigen.ps1. Herkunft: ASG tools/ehs (095faa6 + e9f502d). Gebaut in den Arbeitsordner (Ausgabe),
+       damit NETLOAD einen Pfad ohne Leerzeichen bekommt. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>AVT.Bereinigen</AssemblyName>
+    <RootNamespace>Avt.Bereinigen</RootNamespace>
+    <Version>0.1.0</Version>
+    <Company>Eichler-GmbH</Company>
+    <Copyright>© S. Eichler · Eichler-GmbH</Copyright>
+    <Ausgabe Condition="'$(Ausgabe)' == ''">C:\Temp\AVT\werkzeug\</Ausgabe>
+    <OutputPath>$(Ausgabe)</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="AutoCAD.NET" Version="25.0.1" ExcludeAssets="runtime" />
+    <Reference Include="AecBaseMgd"><HintPath>C:\Program Files\Autodesk\AutoCAD 2026\ACA\AecBaseMgd.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="AecPropDataMgd"><HintPath>C:\Program Files\Autodesk\AutoCAD 2026\ACA\AecPropDataMgd.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="AecbBldSrvMgd"><HintPath>C:\Program Files\Autodesk\AutoCAD 2026\ACA\AecbBldSrvMgd.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>
