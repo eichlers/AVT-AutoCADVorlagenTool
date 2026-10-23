@@ -72,6 +72,16 @@ public sealed class PalettenBefehl
         SymbolSetzen();
         ansicht = new AvtAnsicht();
         palette.AddVisual("AVT", ansicht);
+        // Farbschema wie alle Module (AMK 23.10.2026): nach dem Einfügen fest setzen (AutoCAD setzt den Grund der Palette
+        // beim Einfügen selbst – Befund ANA), beim Laden noch einmal, und bei jedem Umschalten von COLORTHEME sofort.
+        ansicht.Farbschema(Farben.Aktuell());
+        ansicht.Loaded += (_, _) => { try { ansicht.Farbschema(Farben.Aktuell()); } catch (System.Exception ex) { Protokoll.Merke("Fehler", $"Farbschema: {ex.Message}"); } };
+        AcApp.SystemVariableChanged += (_, e) =>
+        {
+            if (!string.Equals(e.Name, "COLORTHEME", StringComparison.OrdinalIgnoreCase)) return;
+            try { ansicht?.Farbschema(Farben.Aktuell()); Protokoll.Merke("Palette", $"Farbschema umgeschaltet (COLORTHEME {AcApp.GetSystemVariable("COLORTHEME")})"); }
+            catch (System.Exception ex) { Protokoll.Merke("Fehler", $"Farbschema umschalten: {ex.Message}"); }
+        };
         BeendenEinrichten();
         var dm = AcApp.DocumentManager;
         dm.DocumentActivated += (_, e) =>

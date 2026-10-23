@@ -72,7 +72,7 @@ internal static class Hinweis
         try
         {
             foreach (Document d in AcApp.DocumentManager)
-                if (d.Database == sender && File.Exists(e.FileName))
+                if (sender is Autodesk.AutoCAD.DatabaseServices.Database s && d.Database.UnmanagedObject == s.UnmanagedObject && File.Exists(e.FileName))
                 {
                     var i = new FileInfo(e.FileName);
                     dateistand[e.FileName] = (i.LastWriteTimeUtc, i.Length);

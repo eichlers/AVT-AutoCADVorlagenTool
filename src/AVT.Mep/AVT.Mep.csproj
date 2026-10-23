@@ -18,7 +18,7 @@
     <OutputPath>bin\$(Configuration)\</OutputPath>
     <AcadPfad>C:\Program Files\Autodesk\AutoCAD 2026</AcadPfad>
     <!-- Versionsnummer NUR hier pflegen – tools\AVT_bundle.ps1 traegt sie ins Bundle ein. -->
-    <Version>0.3.0</Version>
+    <Version>0.3.1</Version>
     <Authors>S. Eichler</Authors>
     <Copyright>© S. Eichler · Eichler-GmbH</Copyright>
     <Product>AVT – Vorlagen-Tool</Product>
@@ -29,6 +29,11 @@
   <ItemGroup>
     <AssemblyMetadata Include="Builddatum" Value="$([System.DateTime]::Now.ToString('dd.MM.yyyy'))" />
     <EmbeddedResource Include="Bilder\Eichler-Logo.png" LogicalName="AVT.Eichler-Logo.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Vorschau der Palette ohne AutoCAD (tools/vorschau) -->
+    <InternalsVisibleTo Include="AVT.Vorschau" />
   </ItemGroup>
 
   <ItemGroup>

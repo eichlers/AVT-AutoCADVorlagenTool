@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Vorschau der AVT-Palette ohne AutoCAD: zeichnet AvtOberflaeche hell und dunkel als PNG (Beleg Farbschema, wie ANA offline). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>AVT.Vorschau</AssemblyName>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AVT.Mep\AVT.Mep.csproj" />
+  </ItemGroup>
+</Project>

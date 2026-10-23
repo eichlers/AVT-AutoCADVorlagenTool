@@ -12,67 +12,23 @@ namespace Avt.Mep.Palette;
 /// Inhalt der AVT-Palette (WPF im Code): „Diese Zeichnung“ (nur lesen), leiser Hinweis, Prüfen, Bereinigen mit Vorschau
 /// a/b/c → Bestätigung → Sicherungskopie → Bereinigen → Nachprüfung → Bericht. AVT speichert nie.
 /// </summary>
-public sealed class AvtAnsicht : UserControl
+public sealed class AvtAnsicht : AvtOberflaeche
 {
-    readonly TextBlock zeichnung = new() { TextWrapping = TextWrapping.Wrap, FontWeight = FontWeights.SemiBold };
-    readonly TextBlock fassung = new() { TextWrapping = TextWrapping.Wrap };
-    readonly TextBlock hinweis = new() { TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(Color.FromRgb(0xB2, 0x5B, 0x00)) };
-    readonly StackPanel vorschau = new();
-    readonly TextBox bericht = new()
-    {
-        IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-        MinHeight = 80, FontFamily = new FontFamily("Consolas"), FontSize = 11,
-    };
-    readonly Button bereinigenStart = new() { Content = "Ausgewählte bereinigen …", Margin = new Thickness(0, 6, 6, 0), Padding = new Thickness(8, 2, 8, 2) };
-    readonly Button abbrechen = new() { Content = "Abbrechen", Margin = new Thickness(0, 6, 0, 0), Padding = new Thickness(8, 2, 8, 2) };
-    readonly StackPanel vorschauLeiste = new() { Orientation = Orientation.Horizontal, Visibility = Visibility.Collapsed };
-
     Document? dokument;
     Analyse? letzte;
-    readonly List<(CheckBox Box, Einordnung Fund)> auswahl = [];
 
     public AvtAnsicht()
     {
-        var kopf = new DockPanel { LastChildFill = false, Margin = new Thickness(0, 0, 0, 6) };
-        kopf.Children.Add(Programminfo.Kennung());
-        var zahnrad = new Button { Content = "⚙", ToolTip = "Version, Stand, Versionshistorie, Einstellungen", Width = 26, Margin = new Thickness(0, 2, 4, 0) };
-        zahnrad.Click += (_, _) => Zahnrad.Zeigen();
-        DockPanel.SetDock(zahnrad, Dock.Right);
-        kopf.Children.Add(zahnrad);
-
-        var pruefen = new Button { Content = "Prüfen", ToolTip = "Nur lesen: Fassung, Zeichnungseigenschaften, Fremdinhalte, Inhaltsprüfsumme", Margin = new Thickness(0, 0, 6, 0), Padding = new Thickness(10, 2, 10, 2) };
-        pruefen.Click += (_, _) => Sicher(Pruefen);
-        var bereinigen = new Button { Content = "Bereinigen …", ToolTip = "Vorschau der Fremdinhalte (a/b/c) – noch nichts wird geändert", Padding = new Thickness(10, 2, 10, 2) };
-        bereinigen.Click += (_, _) => Sicher(VorschauZeigen);
-        var knoepfe = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 6) };
-        knoepfe.Children.Add(pruefen);
-        knoepfe.Children.Add(bereinigen);
-
+        zahnradKnopf.Click += (_, _) => Zahnrad.Zeigen();
+        pruefenKnopf.Click += (_, _) => Sicher(Pruefen);
+        bereinigenKnopf.Click += (_, _) => Sicher(VorschauZeigen);
         bereinigenStart.Click += (_, _) => Sicher(Ausfuehren);
-        abbrechen.Click += (_, _) => { vorschau.Children.Clear(); auswahl.Clear(); vorschauLeiste.Visibility = Visibility.Collapsed; };
-        vorschauLeiste.Children.Add(bereinigenStart);
-        vorschauLeiste.Children.Add(abbrechen);
-
-        var inhalt = new StackPanel { Margin = new Thickness(8) };
-        inhalt.Children.Add(kopf);
-        inhalt.Children.Add(Ueberschrift("Diese Zeichnung"));
-        inhalt.Children.Add(zeichnung);
-        inhalt.Children.Add(fassung);
-        inhalt.Children.Add(hinweis);
-        inhalt.Children.Add(knoepfe);
-        inhalt.Children.Add(vorschau);
-        inhalt.Children.Add(vorschauLeiste);
-        inhalt.Children.Add(Ueberschrift("Bericht"));
-        inhalt.Children.Add(bericht);
-        Content = new ScrollViewer { Content = inhalt, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     }
-
-    static TextBlock Ueberschrift(string text) => new() { Text = text, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 8, 0, 2) };
 
     /// <summary>Kopf „Diese Zeichnung“ für die aktive Zeichnung (nur lesen); einen gemerkten Hinweis anzeigen.</summary>
     internal void ZeichnungAnzeigen(Document? doc)
     {
-        if (doc != dokument) { vorschau.Children.Clear(); auswahl.Clear(); vorschauLeiste.Visibility = Visibility.Collapsed; letzte = null; }
+        if (doc != dokument) { VorschauLeeren(); letzte = null; }
         dokument = doc;
         if (doc == null) { zeichnung.Text = "Keine Zeichnung offen."; fassung.Text = ""; hinweis.Text = ""; return; }
         zeichnung.Text = Path.GetFileName(doc.Name);
@@ -92,7 +48,7 @@ public sealed class AvtAnsicht : UserControl
     {
         if (doc != dokument) return;
         dokument = null; letzte = null;
-        vorschau.Children.Clear(); auswahl.Clear(); vorschauLeiste.Visibility = Visibility.Collapsed;
+        VorschauLeeren();
         zeichnung.Text = "Keine Zeichnung offen."; fassung.Text = ""; hinweis.Text = "";
     }
 
@@ -144,52 +100,11 @@ public sealed class AvtAnsicht : UserControl
             letzte = Fremdanalyse.Lies(doc.Database, tr, null);
             tr.Commit();
         }
-        vorschau.Children.Clear();
-        auswahl.Clear();
         var funde = letzte.Funde;
         HinweisSetzen(doc, Einteilung.Kurzfassung(funde));
-        if (funde.Count == 0)
-        {
-            vorschau.Children.Add(new TextBlock { Text = "Keine Fremdinhalte – nichts zu bereinigen.", Margin = new Thickness(0, 4, 0, 4) });
-            vorschauLeiste.Visibility = Visibility.Collapsed;
-            return;
-        }
-        // Unvollständiger Verweisgraph (nicht lesbare Objekte): nichts zum Entfernen anbieten (Review 0.3.0).
-        var luecke = letzte.Luecke > 0;
-        if (luecke)
-            vorschau.Children.Add(new TextBlock
-            {
-                Text = $"Achtung: {letzte.Luecke} Objekte ließen sich nicht lesen – AVT kann nicht sicher sagen, was unbenutzt ist, und entfernt nichts. Ausnahmen merken geht.",
-                TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DarkRed, Margin = new Thickness(0, 4, 0, 4),
-            });
-        Gruppenliste(Gruppe.FremdUnbenutzt, "a) Fremd und unbenutzt – angehakt wird entfernt (vorab angehakt: mit Fremdspur)", !luecke);
-        Gruppenliste(Gruppe.FremdBenutzt, "b) Fremd und benutzt – bleibt; angehakt = als Ausnahme merken (Hinweis kommt nicht mehr)", true);
-        Gruppenliste(Gruppe.Projektinhalt, "c) Projektinhalt – nur Information", false);
-        vorschauLeiste.Visibility = funde.Any(f => f.Gruppe != Gruppe.Projektinhalt) ? Visibility.Visible : Visibility.Collapsed;
-        bericht.Text = $"Vorschau {Path.GetFileName(doc.Name)}: {Einteilung.Kurzfassung(funde)} · Projektinhalt {Zahl(letzte, Gruppe.Projektinhalt)}. Noch nichts geändert.";
-    }
-
-    void Gruppenliste(Gruppe gruppe, string titel, bool mitAuswahl)
-    {
-        var funde = letzte!.Funde.Where(f => f.Gruppe == gruppe).ToList();
+        VorschauFuellen(funde, letzte.Luecke);
         if (funde.Count == 0) return;
-        var liste = new StackPanel { Margin = new Thickness(4, 0, 0, 0) };
-        foreach (var f in funde)
-        {
-            var text = $"{f.Kandidat.Art}: {f.Kandidat.Name} – {f.Grund}";
-            if (mitAuswahl)
-            {
-                // a: vorab angehakt nur mit Fremdspur (Vorgabe); b: nie vorab.
-                var box = new CheckBox { Content = text, IsChecked = f.Gruppe == Gruppe.FremdUnbenutzt && f.Vorgabe, ToolTip = f.Kandidat.Pfad, Margin = new Thickness(0, 1, 0, 1) };
-                auswahl.Add((box, f));
-                liste.Children.Add(box);
-            }
-            else liste.Children.Add(new TextBlock { Text = "• " + text, ToolTip = f.Kandidat.Pfad, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 1, 0, 1) });
-        }
-        vorschau.Children.Add(new Expander
-        {
-            Header = $"{titel} ({funde.Count})", Content = liste, IsExpanded = gruppe != Gruppe.Projektinhalt, Margin = new Thickness(0, 2, 0, 2),
-        });
+        bericht.Text = $"Vorschau {Path.GetFileName(doc.Name)}: {Einteilung.Kurzfassung(funde)} · Projektinhalt {Zahl(letzte, Gruppe.Projektinhalt)}. Noch nichts geändert.";
     }
 
     /// <summary>Bestätigung → Sicherungskopie (gespeicherte Datei, Prüfsumme) → Bereinigen → Nachprüfung → Bericht. Speichern macht der Nutzer.</summary>
@@ -246,7 +161,7 @@ public sealed class AvtAnsicht : UserControl
         zeilen.Add($"Nachprüfung: {Einteilung.Kurzfassung(nach.Funde) ?? "keine Fremdinhalte"} · Projektinhalt {Zahl(nach, Gruppe.Projektinhalt)}");
         zeilen.Add("Jetzt speichern (Strg+S) – AVT speichert nicht. Ist ein Zusatzprogramm geladen, kann es beim Speichern Einträge neu anlegen: "
             + "dann die Zeichnung im MEP-Profil ohne Zusatzprogramm neu öffnen und erneut bereinigen (der Hinweis zeigt es).");
-        vorschau.Children.Clear(); auswahl.Clear(); vorschauLeiste.Visibility = Visibility.Collapsed;
+        VorschauLeeren();
         HinweisSetzen(doc, Einteilung.Kurzfassung(nach.Funde));
         Hinweis.Merken(doc, Einteilung.Kurzfassung(nach.Funde));
         bericht.Text = string.Join(Environment.NewLine, zeilen);

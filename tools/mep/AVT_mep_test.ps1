@@ -1,4 +1,4 @@
-﻿# AVT 0.3.0 - unbeaufsichtigter Test an der vom NUTZER gestarteten MEP-2026-Instanz (per COM angehaengt).
+﻿# AVT 0.3.x - unbeaufsichtigter Test an der vom NUTZER gestarteten MEP-2026-Instanz (per COM angehaengt).
 # Nur nach "Slot: AVT" von AMK starten. Vorbild ANA_Anhaengen.ps1 / ADM_testhelfer.ps1.
 # Prueft (Ergebnis je Punkt mit Beleg, Bilder vom MEP-Fenster):
 #   1  Werkzeugkasten "AVT": genau ein Knopf, Makro AVTPALETTE, Tooltip; Symbol (Bild)
@@ -193,7 +193,7 @@ try {
         foreach ($n in 'AVT – Einstellungen und Version', 'AVT - Einstellungen und Version') { if (-not $fenster) { $fenster = Finde $n $null ([Windows.Automation.ControlType]::Window) } }
         if ($fenster) {
             $texte = @($fenster.FindAll($Baum::Descendants, (New-Object Windows.Automation.PropertyCondition($A::ControlTypeProperty, [Windows.Automation.ControlType]::Text))) | ForEach-Object { $_.Current.Name })
-            $hatVersion = @($texte | Where-Object { $_ -match '^Version 0\.3\.0' }).Count -gt 0
+            $hatVersion = @($texte | Where-Object { $_ -match '^Version 0\.3\.\d' }).Count -gt 0
             $hatCopy = @($texte | Where-Object { $_ -match 'S\. Eichler · Eichler-GmbH' }).Count -gt 0
             $hatHist = @($texte | Where-Object { $_ -match '^0\.1\.0' }).Count -gt 0
             Notiere ("6 Zahnrad: " + $(if ($hatVersion -and $hatCopy -and $hatHist) { 'OK' } else { 'FEHLER' }) + " - Version $hatVersion, Copyright $hatCopy, Historie $hatHist; Texte: $(($texte | Select-Object -First 4) -join ' | ')") | Out-Null

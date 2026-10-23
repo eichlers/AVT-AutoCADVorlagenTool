@@ -15,10 +15,32 @@ internal static class Programminfo
     public static string Version => Dll.GetName().Version is { } v ? $"{v.Major}.{v.Minor}.{v.Build}" : "?";
 
     public static string Datum =>
-        Dll.GetCustomAttributes<AssemblyMetadataAttribute>().FirstOrDefault(a => a.Key == "Builddatum")?.Value
-        ?? File.GetLastWriteTime(Dll.Location).ToString("dd.MM.yyyy");
+        Attribut(nameof(AssemblyMetadataAttribute), "Builddatum") ?? File.GetLastWriteTime(Dll.Location).ToString("dd.MM.yyyy");
 
-    public static string Copyright => Dll.GetCustomAttribute<AssemblyCopyrightAttribute>()?.Copyright ?? "© S. Eichler · Eichler-GmbH";
+    public static string Copyright => Attribut(nameof(AssemblyCopyrightAttribute), null) ?? "© S. Eichler · Eichler-GmbH";
+
+    /// <summary>
+    /// Assembly-Attribut einzeln lesen: GetCustomAttributes würde auch die AutoCAD-Attribute (CommandClass) auflösen und
+    /// außerhalb von AutoCAD (Vorschau) scheitern. <paramref name="schluessel"/>: erster Wert (Metadaten-Schlüssel) oder null.
+    /// </summary>
+    static string? Attribut(string typ, string? schluessel)
+    {
+        IList<CustomAttributeData> alle;
+        try { alle = Dll.GetCustomAttributesData(); }
+        catch (Exception) { return null; }   // außerhalb von AutoCAD (Vorschau) – Ersatzwerte
+        foreach (var d in alle)
+        {
+            try
+            {
+                if (d.AttributeType.Name != typ) continue;
+                var w = d.ConstructorArguments.Select(a => a.Value as string).ToList();
+                if (schluessel == null) return w.FirstOrDefault();
+                if (w.Count == 2 && w[0] == schluessel) return w[1];
+            }
+            catch (Exception) { /* Attribut aus einer nicht geladenen Bibliothek (AutoCAD) – überspringen */ }
+        }
+        return null;
+    }
 
     /// <summary>„AVT 0.3.0 · Stand 23.10.2026 · © S. Eichler · Eichler-GmbH“</summary>
     public static string Zeile => $"AVT {Version} · Stand {Datum} · {Copyright}";
@@ -35,6 +57,7 @@ internal static class Programminfo
     /// <summary>Versionshistorie (neueste zuerst) – gleicher Stand wie im Handbuch, Kapitel „Versionsstand“.</summary>
     public static readonly (string Version, string Datum, string Inhalt)[] Historie =
     [
+        ("0.3.1", "23.10.2026", "Palette im gemeinsamen Farbschema aller Module (wie ATT): folgt COLORTHEME hell/dunkel, auch beim Umschalten; Zahnrad ebenso"),
         ("0.3.0", "23.10.2026", "Plugin mit Palette und Werkzeugkasten-Knopf; Prüfen und Bereinigen der offenen Zeichnung mit Vorschau a/b/c, Sicherungskopie und Nachprüfung; leiser Hinweis beim Öffnen"),
         ("0.2.0", "23.10.2026", "Inhaltsauszug mit Inhaltsprüfsumme, Prüfen gegen eine Fassung, API-Sonde, DWGPROPS lesen"),
         ("0.1.0", "23.10.2026", "Bereinigen der Vorlage (aus ASG übernommen), Nachprüfung mit zweitem Durchgang"),

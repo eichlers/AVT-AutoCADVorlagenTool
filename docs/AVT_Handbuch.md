@@ -64,6 +64,9 @@ Konsole.
 | **Bereinigen …** | Vorschau der Fremdinhalte, dann auf Wunsch bereinigen (Kapitel 4) |
 | **Bericht** | Ergebnis von Prüfen und Bereinigen, auch im Sitzungsprotokoll |
 
+Die Palette folgt dem Farbschema von AutoCAD (hell oder dunkel, Systemvariable COLORTHEME) – mit denselben Farben wie die
+Paletten von ATT, ADM, ANA und ASG. Wird das Farbschema umgestellt, färbt sie sich sofort um.
+
 AVT läuft auch ohne EHS-Vorlage: Ohne Fassungsstempel gibt es einen Hinweis, keinen Abbruch.
 
 ---
@@ -372,6 +375,7 @@ dann meldet AVT sie in dieser Zeichnung nicht mehr.
 
 | Version | Datum | Inhalt |
 |---|---|---|
+| 0.3.1 | 23.10.2026 | Palette im gemeinsamen Farbschema aller Module (wie ATT): folgt dem AutoCAD-Farbschema hell/dunkel, auch beim Umschalten; Zahnrad ebenso |
 | 0.4.0 (Entwurf) | 23.10.2026 | Erzeugen Teil 1: Entwurf 1.0.0-e1 aus Stammdaten (Textstile Arial, Linientypen, Layer, 99 Systeme mit Layer-Schlüsseln, IDs, Fassungsstempel, DWGPROPS), Prüfen gegen die Stammdaten, reproduzierbar belegt |
 | 0.3.0 | 23.10.2026 | Plugin mit Palette und Werkzeugkasten-Knopf (Anthrazit); Prüfen in der Palette; Bereinigen der offenen Zeichnung mit Vorschau a/b/c, Sicherungskopie, Nachprüfung; leiser Hinweis beim Öffnen; gemeinsame Logik in AVT.Kern; Unit-Tests |
 | 0.2.0 | 23.10.2026 | Inhaltsauszug mit Inhaltsprüfsumme (`AVTKANON`), Prüfen gegen eine Fassung, API-Sonde, DWGPROPS lesen, Kürzel des Standards an einer Stelle, Berichtszeilen mit Präfix „AVT“ |
