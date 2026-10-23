@@ -43,12 +43,24 @@ def zahl(werte: dict[str, str], name: str) -> str:
     return werte.get(f"EHSZAHL {name}", "–").split(" | ")[0]
 
 
-def vergleiche(ist: dict[str, str], soll: dict[str, str]) -> list[str]:
+def namen(wert: str) -> set[str]:
+    """Namensliste ohne den Zusatz „gelistet N“ (ältere Werkzeugstände schrieben ihn nicht)."""
+    return {n.strip() for n in wert.split(" | ")[0].split(";") if n.strip()}
+
+
+def vergleiche(ist: dict[str, str], soll: dict[str, str]) -> tuple[list[str], list[str]]:
+    """Abweichungen (Referenz-Zeilen, die in AVT fehlen oder anders sind) und Zusatzzeilen nur in AVT (Hinweis)."""
     diffs = []
-    for k in sorted(set(ist) | set(soll)):
-        if ist.get(k) != soll.get(k):
-            diffs.append(f"- `{k}`: AVT `{ist.get(k, 'fehlt')}` · Referenz `{soll.get(k, 'fehlt')}`")
-    return diffs
+    for k in sorted(soll):
+        if k not in ist:
+            diffs.append(f"- `{k}`: fehlt in AVT")
+        elif k.startswith("EHSNAMEN "):
+            a, r = namen(ist[k]), namen(soll[k])
+            if a != r:
+                diffs.append(f"- `{k}`: nur AVT {sorted(a - r)} · nur Referenz {sorted(r - a)}")
+        elif ist[k] != soll[k]:
+            diffs.append(f"- `{k}`: AVT `{ist[k]}` · Referenz `{soll[k]}`")
+    return diffs, [f"- `{k}` (nur AVT, in der Referenz nicht ausgegeben)" for k in sorted(set(ist) - set(soll))]
 
 
 def bericht(ordner: Path, referenz: Path | None) -> int:
@@ -77,9 +89,10 @@ def bericht(ordner: Path, referenz: Path | None) -> int:
             md += [f"- {z[len('AVTNACH '):]}" for z in zeilen(datei)]
     rc = 0
     if referenz:
-        diffs = vergleiche(nach, kennzahlen(referenz))
+        diffs, zusatz = vergleiche(nach, kennzahlen(referenz))
         md += ["", f"## Vergleich mit Referenz `{referenz}`", ""]
         md += diffs if diffs else ["Keine Abweichung in EHSZAHL, EHSKLASSE, EHSNAMEN, EHSNOD."]
+        md += zusatz
         rc = 1 if diffs else 0
     (ordner / "Bericht_AVT.md").write_text("\n".join(md) + "\n", encoding="utf-8")
     print(f"Bericht: {ordner / 'Bericht_AVT.md'} · Abweichungen zur Referenz: {'ja' if rc else 'nein'}")
