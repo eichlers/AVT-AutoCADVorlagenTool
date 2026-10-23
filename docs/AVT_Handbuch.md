@@ -135,14 +135,17 @@ Zwei Zeichnungen mit gleichem Inhalt haben dieselbe Prüfsumme, auch wenn sie ge
 etwas, zeigt der Vergleich der beiden Textdateien genau, welches Objekt.
 
 Ausgeglichen werden Werte, die sich bei jedem Bau ändern, ohne Inhalt zu sein: Reihenfolge von Verweislisten,
-GUIDs dynamischer Blöcke, Versionsstempel von AEC-Objekten. Räumliche Indizes und die DACH-Sanierungsstile zählen
+GUIDs dynamischer Blöcke, Versionsstempel von AEC-Objekten, Nummern anonymer Blöcke und anonymer AEC-Einträge
+(`*U12`, `*A113` – sie heißen im Auszug `*U#0`, `*A#0` … nach ihrer Reihenfolge). Räumliche Indizes und die DACH-Sanierungsstile zählen
 nur mit ihrem Pfad, weil ihr Inhalt schon beim zweiten Lesen derselben Datei anders ausfällt.
 
 ```
 powershell -File tools\AVT_kanon.ps1 -Zeichnungen <dwg1>,<dwg2> -Arbeit C:\Temp\AVT\<Ordner> [-Audit]
 ```
 
-**Prüfen:** Inhaltsauszug einer Zeichnung, dazu AUDIT (nur melden) und der Vergleich mit der Fassung.
+**Prüfen:** Inhaltsauszug einer Zeichnung, danach AUDIT (nur melden) und der Vergleich mit der Fassung. Der Auszug
+kommt immer vor AUDIT: AUDIT berechnet Schraffuren neu, auch wenn es nichts beheben soll, und würde den Auszug
+verfälschen.
 
 ```
 powershell -File tools\AVT_pruefen.ps1 -Zeichnung <dwg> -Arbeit C:\Temp\AVT\<Ordner> [-Soll <kanon.txt der Fassung>]
@@ -168,6 +171,25 @@ powershell -File tools\AVT_sonde.ps1 -Quelle <dwg oder dwt> -Arbeit C:\Temp\AVT\
 
 Ergebnis in `sonde.txt` (Anlegen) und `lesen.txt` (Zurücklesen). Die Sonde ist ein Entwicklungswerkzeug; ihre
 Zeichnung ist kein Ergebnis für die Praxis.
+
+**Stand 0.2.0 (MEP 2026, ohne Oberfläche, nach Speichern und Neuöffnen zurückgelesen, AUDIT 0 an EHS 0.2):**
+
+| Objektart | per Programm | Bemerkung |
+|---|---|---|
+| Layer, Linientypen (Strichmuster oder aus `acadiso.lin`), Textstile, Bemaßungsstile, Layouts | ja | |
+| AutoCAD-Tabellenstil | ja | als Kopie von „Standard“; neu angelegt ergab er AUDIT-Fehler |
+| Eigenschaftssatzdefinition mit Text-, Zahl-, Ja/Nein-Feldern | ja | |
+| Formelfeld | ja | |
+| Automatisches Feld | ja | Quellen mit deutschem Namen (z. B. „Farbe“), Liste je Objektklasse von AutoCAD |
+| Layer-Schlüsselstil | ja | neu angelegt kommt er mit den 113 Standardschlüsseln |
+| Schemasystem (Systemdefinition) | ja | Kürzel, Gruppe, Layer-Schlüssel |
+| Mehransichtsblock mit Ansichtsblock | ja | Darstellung wählbar aus den Darstellungen der Zeichnung |
+| Bauteiltabellenstil mit Spalten | ja | Formate (Höhe, Textstil, Ausrichtung) einstellbar |
+| Anzeigethema mit Regel (Satz, Feld, Bedingung) | ja | |
+| Farbe einer Themen-Komponente | teilweise | an einer kopierten Komponente ja; eine neu angelegte Komponente hat keine Darstellungseigenschaften |
+| Anzeigesatz | teilweise | leer anlegbar; Inhalt kommt aus der Leervorlage |
+| Anzeigekonfiguration | aus der Leervorlage | |
+| Zeichnungseigenschaften (DWGPROPS) mit eigenen Feldern | ja | |
 
 ---
 
@@ -210,6 +232,8 @@ ab dem Erzeugen in `Stammdaten\Standard.csv`). Umschwenken bedeutet eine neue Ha
 - Die Inhaltsprüfsumme übergeht den Inhalt räumlicher Indizes und der DACH-Sanierungsstile (siehe Kapitel 4).
 - AUDIT meldet bei der Autodesk-Leervorlage „Aecb Model (D A CH Ctb) mm“ schon im Auslieferungszustand 2 Fehler
   (Listen-Definition „Standard“); diese stammen nicht von AVT.
+- Anonyme Einträge zählen im Inhaltsauszug nach ihrer Reihenfolge. Fällt einer weg, verschieben sich die folgenden und
+  erscheinen als „geändert“.
 
 ---
 

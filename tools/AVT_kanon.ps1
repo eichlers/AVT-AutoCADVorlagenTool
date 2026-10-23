@@ -24,7 +24,8 @@ foreach ($z in $Zeichnungen) {
     $ordner = Join-Path $Arbeit "kanon_$n"
     $aus = Join-Path $ordner 'kanon.txt'
     $vorweg = if ($Audit) { @('_AUDIT', '_N') } else { @() }
-    Lauf $ordner $z $dll ($vorweg + @('AVTKANON', (P $aus), $detailText))
+    # Inventur vor AUDIT: AUDIT berechnet Schraffuren neu, auch mit _N (Befund 23.10.2026).
+    Lauf $ordner $z $dll (@('AVTKANON', (P $aus), $detailText) + $vorweg)
     PruefeEnde $aus 'AVTENDE ok'
     $gesamt = (Zeilen $aus | Where-Object { $_ -like 'AVTKANON Gesamt |*' }) -replace '^AVTKANON Gesamt \| ', ''
     $objekte = (Zeilen $aus | Where-Object { $_ -like 'AVTKANON Objekte |*' }) -replace '^AVTKANON Objekte \| ', ''

@@ -15,8 +15,8 @@ $ziel = Join-Path $Arbeit 'sonde.dwg'
 if (Test-Path $ziel) { Remove-Item $ziel -Force }
 Lauf (Join-Path $Arbeit 'lauf1') $Quelle $dll @('AVTSONDE', (P (Join-Path $Arbeit 'sonde.txt')), (P $ziel), $Auslassen)
 PruefeEnde (Join-Path $Arbeit 'sonde.txt') 'AVTENDE ok'
-Lauf (Join-Path $Arbeit 'lauf2') $ziel $dll @('_AUDIT', '_N', 'AVTSONDELESEN', (P (Join-Path $Arbeit 'lesen.txt')),
-    'AVTKANON', (P (Join-Path $Arbeit 'kanon.txt')), 'AVT_Sonde')
+Lauf (Join-Path $Arbeit 'lauf2') $ziel $dll @('AVTKANON', (P (Join-Path $Arbeit 'kanon.txt')), 'AVT_Sonde',
+    'AVTSONDELESEN', (P (Join-Path $Arbeit 'lesen.txt')), '_AUDIT', '_N')
 PruefeEnde (Join-Path $Arbeit 'lesen.txt') 'AVTENDE ok'
 Zeilen (Join-Path $Arbeit 'sonde.txt')
 Zeilen (Join-Path $Arbeit 'lesen.txt')

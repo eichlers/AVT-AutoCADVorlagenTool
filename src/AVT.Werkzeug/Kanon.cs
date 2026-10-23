@@ -116,11 +116,19 @@ internal static class Kanon
         return pfade;
     }
 
-    /// <summary>Buchstabe eines anonymen Blocks (U, D, T, X, A …) oder null.</summary>
-    static string? AnonymeArt(Objekt o) =>
-        o.Klasse == "AcDbBlockTableRecord" && o.Name.Length > 1 && o.Name[0] == '*'
-        && !o.Name.StartsWith("*Model_Space", StringComparison.OrdinalIgnoreCase)
-        && !o.Name.StartsWith("*Paper_Space", StringComparison.OrdinalIgnoreCase) ? o.Name[1].ToString() : null;
+    /// <summary>
+    /// Buchstabe eines anonymen Namens oder null: anonyme Blöcke (*U12, *D3 …) und anonyme AEC-Einträge in Wörterbüchern
+    /// (*A113 in AEC_DISPLAY_PROPS_DEFAULTS) – ihre Nummern vergibt AutoCAD je Datei neu.
+    /// </summary>
+    static string? AnonymeArt(Objekt o)
+    {
+        var n = o.Name;
+        if (n.Length < 2 || n[0] != '*') return null;
+        if (o.Klasse == "AcDbBlockTableRecord")
+            return n.StartsWith("*Model_Space", StringComparison.OrdinalIgnoreCase) || n.StartsWith("*Paper_Space", StringComparison.OrdinalIgnoreCase)
+                ? null : n[1].ToString();
+        return char.IsLetter(n[1]) && n.Length > 2 && n[2..].All(char.IsDigit) ? n[1].ToString() : null;
+    }
 }
 
 /// <summary>
