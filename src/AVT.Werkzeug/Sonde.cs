@@ -105,16 +105,16 @@ public sealed class Sonde
 
     static string Tabellenstil(Database db, Transaction tr)
     {
+        // Neu angelegt (new TableStyle, auch über PostTableStyleToDatabase) ergab 6 AUDIT-Fehler (Eingrenzung 23.10.2026).
+        // Darum als Kopie des Tabellenstils „Standard“ der Zeichnung, dann ändern.
         var d = (DBDictionary)tr.GetObject(db.TableStyleDictionaryId, OpenMode.ForWrite);
-        // Über PostTableStyleToDatabase eintragen: SetAt allein ergab 6 AUDIT-Fehler (Sonde 23.10.2026, Eingrenzung).
-        var s = new TableStyle();
-        s.PostTableStyleToDatabase(db, P + "_Tabelle");
-        // Das Objekt selbst steht jetzt in der Zeichnung – der Transaktion bekannt machen (sonst bleibt es offen: eWasOpenForWrite).
-        tr.AddNewlyCreatedDBObject(s, true);
+        if (!d.Contains("Standard")) return "kein Tabellenstil „Standard“ als Vorlage";
+        var vorlage = (TableStyle)tr.GetObject(d.GetAt("Standard"), OpenMode.ForRead);
+        var s = (TableStyle)vorlage.Clone();
+        d.SetAt(P + "_Tabelle", s); tr.AddNewlyCreatedDBObject(s, true);
         s.Description = "Sonde";
-        // Formate erst nach dem Eintragen (vorher eOwnerNotSet, Sonde 23.10.2026).
         s.SetTextHeight(2.5, (int)RowType.DataRow);
-        return "Texthöhe Daten 2,5";
+        return "Kopie von „Standard“, Texthöhe Daten 2,5";
     }
 
     static Aecp.PropertySetDefinition NeueSatzdefinition(Database db, Transaction tr, string name, params string[] klassen)
