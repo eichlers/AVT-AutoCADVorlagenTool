@@ -30,9 +30,13 @@ $avt = "$($version.Major).$($version.Minor).$($version.Build)"
 
 function Bau([string] $ordner) {
     New-Item -ItemType Directory -Force $ordner | Out-Null
-    $ziel = Join-Path $ordner "EHS_$Fassung.dwg"; $bericht = Join-Path $ordner 'erzeugen.txt'
-    Lauf (Join-Path $ordner 'lauf1') $Basis $dll @('AVTERZEUGEN', (P $bericht), (P $ziel), $Stammdaten, $Systeme, $Fassung, $Vorgaenger, $stand, $basisText, $avt) @($bericht, $ziel)
+    $zwischen = Join-Path $ordner "EHS_${Fassung}_zwischen.dwg"; $bericht = Join-Path $ordner 'erzeugen.txt'
+    Lauf (Join-Path $ordner 'lauf1') $Basis $dll @('AVTERZEUGEN', (P $bericht), (P $zwischen), $Stammdaten, $Systeme, $Fassung, $Vorgaenger, $stand, $basisText, $avt) @($bericht, $zwischen)
     PruefeEnde $bericht 'AVTENDE ok'
+    # Abschliessen am als Dokument geoeffneten Zwischenstand: Inhaltspruefsumme + DWGPROPS, Ergebnis speichern.
+    $ziel = Join-Path $ordner "EHS_$Fassung.dwg"; $abschluss = Join-Path $ordner 'abschliessen.txt'
+    Lauf (Join-Path $ordner 'lauf1b') $zwischen $dll @('AVTABSCHLIESSEN', (P $abschluss), (P $ziel), $Stammdaten) @($abschluss, $ziel)
+    PruefeEnde $abschluss 'AVTENDE ok'
     $kanon = Join-Path $ordner 'kanon.txt'; $stamm = Join-Path $ordner 'stammpruefung.txt'
     Lauf (Join-Path $ordner 'lauf2') $ziel $dll @('AVTKANON', (P $kanon), '-', 'AVTSTAMMPRUEFEN', (P $stamm), $Stammdaten, $Systeme, '_AUDIT', '_N') @($kanon, $stamm)
     PruefeEnde $kanon 'AVTENDE ok'; PruefeEnde $stamm 'AVTENDE ok'
@@ -43,7 +47,8 @@ function Bau([string] $ordner) {
 
 "Basis: $basisText | Stammdaten: $stand | AVT $avt | Fassung $Fassung"
 $b1 = Bau (Join-Path $Arbeit 'bau1')
-Zeilen (Join-Path $b1.Ordner 'erzeugen.txt') | Where-Object { $_ -match '^AVTERZEUGEN (Basis \||Basis entfernt|Systeme|Inhalt|gespeichert)' }
+Zeilen (Join-Path $b1.Ordner 'erzeugen.txt') | Where-Object { $_ -match '^AVTERZEUGEN (Basis \||Basis entfernt|Systeme)' }
+Zeilen (Join-Path $b1.Ordner 'abschliessen.txt') | Where-Object { $_ -match '^AVTERZEUGEN' }
 Zeilen (Join-Path $b1.Ordner 'erzeugen.txt') | Where-Object { $_ -match '^AVTERZEUGEN Textstil der Basis' } | Select-Object -First 8
 Zeilen (Join-Path $b1.Ordner 'stammpruefung.txt') | Where-Object { $_ -match '^AVTSTAMM (FEHLER|OK|Ergebnis)' } | Select-Object -First 25
 "Inhaltspruefsumme Bau 1: $($b1.Gesamt) | AUDIT: $($b1.Audit)"

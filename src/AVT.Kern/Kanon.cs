@@ -22,7 +22,7 @@ internal static class Kanon
 {
     public static List<KanonZeile> Lies(Database db, Transaction tr, Bestand b, IReadOnlyList<string> detailPraefixe)
     {
-        var pfade = Pfade(db, b);
+        var pfade = Pfade(db, b, tr);
         var zeilen = new List<KanonZeile>();
         foreach (var (id, o) in b.Alle)
         {
@@ -65,6 +65,7 @@ internal static class Kanon
             var werte = stellen.Select(i => n[i]).OrderBy(v => v, StringComparer.Ordinal).ToList();
             for (var i = 0; i < stellen.Count; i++) n[stellen[i]] = werte[i];
         }
+        if (klasse == "AcDbDictionary") WoerterbuchPaare(n);
         if (klasse == "AcDbBlockTableRecord") SortiereStellen(v => v.StartsWith("SP", StringComparison.Ordinal) && (v.Contains("/AcDbBlockReference#") || v.Contains("/AecDbMvBlockRef#")));
         SortiereStellen(v => v.StartsWith("SAecSpaceCalculation", StringComparison.Ordinal));
         // Nur Binärwerte bis zum nächsten Wert, der kein Binärwert ist, gehören zur flüchtigen XData (Review 23.10.2026).
@@ -77,6 +78,30 @@ internal static class Kanon
         }
         return n;
     }
+
+    /// <summary>
+    /// Einträge eines Wörterbuchs (Paare Schlüssel/Objekt) nach Objektpfad sortieren und anonyme Schlüssel (*A10)
+    /// neutralisieren – AutoCAD ordnet und nummeriert sie beim Speichern neu (Befund 23.10.2026, AVT 0.4.0).
+    /// </summary>
+    static void WoerterbuchPaare(List<string> n)
+    {
+        var stellen = new List<int>();
+        for (var i = 0; i + 1 < n.Count; i++)
+        {
+            if (n[i].StartsWith("S", StringComparison.Ordinal) && !n[i].StartsWith("SO", StringComparison.Ordinal) && !n[i].StartsWith("SP", StringComparison.Ordinal)
+                && (n[i + 1].StartsWith("SO", StringComparison.Ordinal) || n[i + 1].StartsWith("HO", StringComparison.Ordinal)))
+            {
+                stellen.Add(i);
+                i++;
+            }
+        }
+        var paare = stellen.Select(i => (Schluessel: IstAnonym(n[i][1..]) ? "S*" : n[i], Ziel: n[i + 1]))
+            .OrderBy(p => p.Ziel, StringComparer.Ordinal).ThenBy(p => p.Schluessel, StringComparer.Ordinal).ToList();
+        for (var k = 0; k < stellen.Count; k++) { n[stellen[k]] = paare[k].Schluessel; n[stellen[k] + 1] = paare[k].Ziel; }
+    }
+
+    /// <summary>Anonymer Name „*A113“, „*U12“ (Stern, Buchstabe, Ziffern).</summary>
+    static bool IstAnonym(string name) => name.Length > 2 && name[0] == '*' && char.IsLetter(name[1]) && name[2..].All(char.IsDigit);
 
     public static string Gesamt(IEnumerable<KanonZeile> zeilen) =>
         Sha(string.Join("\n", zeilen.Select(z => $"{z.Pfad}\t{z.Klasse}\t{z.Pruefsumme}")));
@@ -91,9 +116,10 @@ internal static class Kanon
     /// Klasse nach Handle). Anonyme Blöcke (*U12, *D3 …) heißen *U#n, damit ihr wechselnder Name nicht zählt.
     /// Gleiche Pfade bekommen ~2, ~3 … angehängt.
     /// </summary>
-    internal static Dictionary<ObjectId, string> Pfade(Database db, Bestand b)
+    internal static Dictionary<ObjectId, string> Pfade(Database db, Bestand b, Transaction? tr = null)
     {
         var segment = new Dictionary<ObjectId, string>();
+        var anonymeEintraege = new List<ObjectId>();
         foreach (var gruppe in b.Alle.Values.GroupBy(o => (o.Besitzer, o.Klasse, Anonym: AnonymeArt(o))))
         {
             var namenlos = 0;
@@ -103,8 +129,28 @@ internal static class Kanon
                     : gruppe.Key.Anonym is { } art ? $"*{art}#{namenlos++}"
                     : o.Name != "" ? Esc(o.Name).Replace('/', '∕')
                     : $"{o.Klasse}#{namenlos++}";
+                if (gruppe.Key.Anonym != null && o.Klasse != "AcDbBlockTableRecord") anonymeEintraege.Add(o.Id);
             }
         }
+        var pfade = Zusammensetzen(b, segment);
+        if (tr == null || anonymeEintraege.Count == 0) return Eindeutig(pfade);
+        // Anonyme Wörterbucheinträge (*A113 …) nach Inhalt benennen: AutoCAD vergibt Schlüssel und Handles beim Speichern
+        // neu (Befund 23.10.2026). Verweise auf andere anonyme Einträge und der eigene Schlüssel zählen dabei nicht.
+        var maskiert = new Dictionary<ObjectId, string>(pfade);
+        foreach (var id in anonymeEintraege) maskiert[id] = "*?";
+        foreach (var id in anonymeEintraege)
+        {
+            var o = b.Alle[id];
+            var fang = new Kanonfang(db, maskiert);
+            try { tr.GetObject(id, OpenMode.ForRead, false).DwgOut(fang); } catch (System.Exception) { fang.Tokens.Add("FEHLER"); }
+            var tokens = Normiere(o.Klasse, fang.Tokens).Select(t => t == "S" + o.Name ? "S*" : t);
+            segment[id] = $"*{o.Name[1]}~{Sha(string.Join("|", tokens))[..10]}";
+        }
+        return Eindeutig(Zusammensetzen(b, segment));
+    }
+
+    static Dictionary<ObjectId, string> Zusammensetzen(Bestand b, Dictionary<ObjectId, string> segment)
+    {
         var pfade = new Dictionary<ObjectId, string>();
         string Pfad(ObjectId id, int tiefe)
         {
@@ -114,6 +160,11 @@ internal static class Kanon
             return pfade[id] = vorn + segment[id];
         }
         foreach (var id in b.Alle.Keys.OrderBy(i => i.Handle.Value)) Pfad(id, 0);
+        return pfade;
+    }
+
+    static Dictionary<ObjectId, string> Eindeutig(Dictionary<ObjectId, string> pfade)
+    {
         // Doppelte Pfade eindeutig machen (Reihenfolge nach Handle).
         foreach (var g in pfade.GroupBy(p => p.Value).Where(g => g.Count() > 1).ToList())
         {

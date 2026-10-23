@@ -48,33 +48,36 @@ internal static class Erzeuger
     }
 
     /// <summary>
-    /// Speichern mit Inhaltsprüfsumme: erst als Zwischenstand speichern, die gespeicherte Fassung lesen, ihren Inhaltsauszug
-    /// bilden und mit den DWGPROPS (Pflichtfelder samt EHS_Inhaltspruefsumme) als Ergebnis speichern – so passt die Prüfsumme
-    /// zur Datei (beim Speichern ergänzt AutoCAD manches, z. B. den Dateinamen der TrueType-Schrift).
+    /// Abschließen am als Dokument geöffneten Zwischenstand (AVTABSCHLIESSEN): Inhaltsauszug bilden und mit den DWGPROPS
+    /// (Pflichtfelder samt EHS_Inhaltspruefsumme) versehen. Die Angaben des Bauauftrags kommen aus dem Fassungsstempel.
+    /// Grund: Beim Speichern und beim Öffnen als Dokument ergänzt AutoCAD Objekte – die Prüfsumme gilt für die Datei, wie
+    /// sie geöffnet wird (Befund 23.10.2026: Seitendatenbank und Dokument unterschieden sich).
     /// </summary>
-    public static string Speichern(Database db, string ziel, string stammdaten, Bauauftrag auftrag)
+    public static string Abschliessen(Database db, string stammdaten)
     {
         var standard = Tabelle.Lies(Path.Combine(stammdaten, "Standard.csv"), "Schluessel", "Wert").Zeilen
             .ToDictionary(z => z.Werte["Schluessel"], z => z.Werte["Wert"], StringComparer.Ordinal);
-        var zwischen = Path.Combine(Path.GetDirectoryName(ziel)!, Path.GetFileNameWithoutExtension(ziel) + "_zwischen.dwg");
-        if (File.Exists(zwischen)) File.Delete(zwischen);
-        db.SaveAs(zwischen, DwgVersion.Current);
         string gesamt;
-        using (var seite = new Database(false, true))
+        Bauauftrag auftrag;
+        using (var tr = db.TransactionManager.StartTransaction())
         {
-            seite.ReadDwgFile(zwischen, FileOpenMode.OpenForReadAndAllShare, true, "");
-            seite.CloseInput(true);
-            using (var tr = seite.TransactionManager.StartTransaction())
-            {
-                var b = Bestand.Lies(seite, tr);
-                gesamt = Kanon.Gesamt(Kanon.Lies(seite, tr, b, []));
-                tr.Commit();
-            }
-            DwgProps(seite, standard, auftrag, gesamt);
-            seite.SaveAs(ziel, DwgVersion.Current);
+            var stempel = Zeichnungsangaben.FassungLesen(db, tr).Select(z => z.Split(" = ", 2)).Where(p => p.Length == 2)
+                .ToDictionary(p => p[0], p => p[1], StringComparer.Ordinal);
+            string W(string k) => stempel.TryGetValue(k, out var v) ? v : throw new InvalidDataException($"Fassungsstempel: {k} fehlt");
+            auftrag = new Bauauftrag(W("Fassung"), W("Vorgaenger"), W("Stammdaten"), W("Basis"), W("AVT"));
+            var b = Bestand.Lies(db, tr);
+            gesamt = Kanon.Gesamt(Kanon.Lies(db, tr, b, []));
+            tr.Commit();
         }
-        File.Delete(zwischen);
+        DwgProps(db, standard, auftrag, gesamt);
         return gesamt;
+    }
+
+    /// <summary>Zwischenstand speichern (ohne Inhaltsprüfsumme – die setzt <see cref="Abschliessen"/>).</summary>
+    public static string Speichern(Database db, string ziel, string stammdaten, Bauauftrag auftrag)
+    {
+        db.SaveAs(ziel, DwgVersion.Current);
+        return "folgt mit AVTABSCHLIESSEN";
     }
 
     /// <summary>Autodesk-Fachinhalt nach Muster entfernen – nur, was nach dem Verweisgraph unbenutzt ist; Purge prüft zusätzlich.</summary>
@@ -84,7 +87,7 @@ internal static class Erzeuger
         using var tr = db.TransactionManager.StartTransaction();
         var b = Bestand.Lies(db, tr);
         if (b.Unlesbar + b.OhneZeiger.Count > 0) throw new InvalidOperationException($"Basis: Verweisgraph unvollständig ({b.Unlesbar + b.OhneZeiger.Count}) – nichts entfernt");
-        var pfade = Kanon.Pfade(db, b);
+        var pfade = Kanon.Pfade(db, b, tr);
         var kinder = b.Alle.Values.GroupBy(o => o.Besitzer).ToDictionary(g => g.Key, g => g.Select(o => o.Id).ToList());
         var extra = new Dictionary<ObjectId, List<ObjectId>>();
         foreach (var o in b.Alle.Values)

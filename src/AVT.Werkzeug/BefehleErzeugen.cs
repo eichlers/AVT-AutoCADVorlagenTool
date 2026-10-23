@@ -37,12 +37,34 @@ public sealed class BefehleErzeugen
             if (string.Equals(ziel, Path.GetFullPath(doc.Name), StringComparison.OrdinalIgnoreCase) || string.Equals(ziel, datei, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Ergebniszeichnung muss eine neue Datei sein");
             aus.AddRange(Erzeuger.Bauen(doc.Database, stammdaten, systeme, auftrag));
-            aus.Add($"AVTERZEUGEN Inhaltsprüfsumme | {Erzeuger.Speichern(doc.Database, ziel, stammdaten, auftrag)}");
+            aus.Add($"AVTERZEUGEN Zwischenstand | {Erzeuger.Speichern(doc.Database, ziel, stammdaten, auftrag)}");
             aus.Add($"AVTERZEUGEN gespeichert | {ziel}");
             aus.Add("AVTENDE ok");
         }
         catch (System.Exception ex) { aus.Add($"AVTENDE FEHLER {ex.GetBaseException().GetType().Name}: {ex.GetBaseException().Message}"); }
         Befehle.Ablegen(doc.Editor, datei, aus, "Erzeugen");
+    }
+
+    /// <summary>AVTABSCHLIESSEN: am geöffneten Zwischenstand die Inhaltsprüfsumme bilden, DWGPROPS setzen, als Ergebnis speichern.</summary>
+    [CommandMethod("AVTABSCHLIESSEN", CommandFlags.Modal | CommandFlags.NoHistory)]
+    public void Abschliessen()
+    {
+        var doc = AcApp.DocumentManager.MdiActiveDocument;
+        if (!Befehle.Testkopie(doc) || Befehle.Pfad(doc.Editor, "Ausgabedatei") is not { } datei
+            || Befehle.Pfad(doc.Editor, "Ergebniszeichnung") is not { } ziel) return;
+        var aus = new List<string>();
+        try
+        {
+            var stammdaten = Text(doc.Editor, "Stammdaten-Ordner");
+            if (string.Equals(ziel, Path.GetFullPath(doc.Name), StringComparison.OrdinalIgnoreCase) || string.Equals(ziel, datei, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Ergebniszeichnung muss eine neue Datei sein");
+            aus.Add($"AVTERZEUGEN Inhaltsprüfsumme | {Erzeuger.Abschliessen(doc.Database, stammdaten)}");
+            doc.Database.SaveAs(ziel, DwgVersion.Current);
+            aus.Add($"AVTERZEUGEN gespeichert | {ziel}");
+            aus.Add("AVTENDE ok");
+        }
+        catch (System.Exception ex) { aus.Add($"AVTENDE FEHLER {ex.GetBaseException().GetType().Name}: {ex.GetBaseException().Message}"); }
+        Befehle.Ablegen(doc.Editor, datei, aus, "Abschließen");
     }
 
     [CommandMethod("AVTSTAMMPRUEFEN", CommandFlags.Modal | CommandFlags.NoHistory)]

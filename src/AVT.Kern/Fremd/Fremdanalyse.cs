@@ -28,7 +28,7 @@ internal static class Fremdanalyse
     {
         var uhr = Stopwatch.StartNew();
         var b = Bestand.Lies(db, tr, mitTexten: true);
-        var pfade = Kanon.Pfade(db, b);
+        var pfade = Kanon.Pfade(db, b, tr);
         var fassung = Fassung(db, tr);
         var referenz = Referenz.Fuer(fassung, referenzOrdner);
         var kinder = b.Alle.Values.GroupBy(o => o.Besitzer).ToDictionary(g => g.Key, g => g.Select(o => o.Id).ToList());
