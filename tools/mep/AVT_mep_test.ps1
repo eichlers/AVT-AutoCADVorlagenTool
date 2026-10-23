@@ -1,4 +1,4 @@
-# AVT 0.3.0 - unbeaufsichtigter Test an der vom NUTZER gestarteten MEP-2026-Instanz (per COM angehaengt).
+﻿# AVT 0.3.0 - unbeaufsichtigter Test an der vom NUTZER gestarteten MEP-2026-Instanz (per COM angehaengt).
 # Nur nach "Slot: AVT" von AMK starten. Vorbild ANA_Anhaengen.ps1 / ADM_testhelfer.ps1.
 # Prueft (Ergebnis je Punkt mit Beleg, Bilder vom MEP-Fenster):
 #   1  Werkzeugkasten "AVT": genau ein Knopf, Makro AVTPALETTE, Tooltip; Symbol (Bild)
