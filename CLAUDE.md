@@ -40,7 +40,9 @@ Nicht AVT: Symbolstile erzeugen/ändern (ASG), Stempel (ATT), Tabellen/Listen/Da
   Bereinigen der offenen Zeichnung: Vorschau → Bestätigung → Sicherungskopie → Runden mit Purge → Nachprüfung; speichert nie.
   Einspielen nur nach AMK-„frei“-Runde. Umstellen alter Zeichnungen entfällt (Nutzer 23.10.: neues System).
 - **Vorgemerkt:** Prüfen gegen Unterklassen.csv/Bauarten.csv (DIN EN IEC 81346-2:2020-10); Kunden-Bezug (Roche) im Kern = Fehler,
-  Begriffe aus den Stammdaten.
+  Begriffe aus den Stammdaten. Textstile nur Arial (TrueType) – Nutzer 23.10.: „muss immer Arial sein, damit man im PDF
+  suchen kann“; Stammdaten\Textstile.csv (Rollen EHS_Text_18/25/35/50), Prüfen: andere Schrift (SHX, Kundenschrift) = Fehler,
+  auch Legendenschrift der Anzeigethemen; Textstile der Leervorlage melden.
 - **Versionsplan** (AMK ok): 0.3.0 Plugin/Palette/Knopf + Bereinigen der offenen Zeichnung (Vorschau, Bestätigung,
   Sicherungskopie, Einteilung a/b/c), 0.4.0 Erzeugen, 0.6.0 Release (DWGPROPS schreiben).
 - **Bauplan „grüne Wiese“** (Nutzer 23.10., `Schema\Bauplan_EHS.md`): AVT erzeugt die Vorlage aus Stammdaten – erst nach Auftrag AMK bauen.
