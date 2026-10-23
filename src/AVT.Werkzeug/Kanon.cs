@@ -8,14 +8,15 @@ using Autodesk.AutoCAD.Runtime;
 namespace Avt.Werkzeug;
 
 /// <summary>Eine Zeile der kanonischen Inventur: fester Pfad, Klasse, Prüfsumme des Inhalts (und auf Wunsch der Inhalt).</summary>
-internal sealed record KanonZeile(string Pfad, string Klasse, string Pruefsumme, string? Inhalt);
+internal sealed record KanonZeile(string Pfad, string Klasse, string Pruefsumme, string? Inhalt, string Zustand);
 
 /// <summary>
 /// Kanonische Inventur (AVT 0.2.0): jedes Objekt der Zeichnung mit einem Pfad aus Namen statt Handles
 /// (z. B. „AcDbLayerTable/Z_Schema“, „NOD/AEC_DISPLAYTHEME_STYLES/DN Rohrleitung“) und einer Prüfsumme über alles, was das
-/// Objekt beim DwgOut schreibt. Verweise auf andere Objekte werden als deren Pfad geschrieben, Handles nie. So ist die
-/// Inventur unabhängig davon, in welcher Reihenfolge die Zeichnung gebaut wurde, und zwei Fassungen lassen sich als Text
-/// vergleichen. Gesamtprüfsumme = SHA-256 über die sortierten Zeilen.
+/// Objekt beim DwgOut schreibt. Verweise auf andere Objekte werden als deren Pfad geschrieben, Handles nie. Benannte Objekte
+/// haben so feste Pfade; namenlose und anonyme (Klasse#n, *U#n) werden nach Handle nummeriert – gleich gebaute Zeichnungen
+/// vergleichen sich darum sicher, anders gebaute können namenlose Objekte verschoben zeigen (Grenze 0.2.0, Review 23.10.2026;
+/// Abhilfe ab 0.4.0: Nummer nach Inhalt). Gesamtprüfsumme = SHA-256 über die sortierten Zeilen.
 /// </summary>
 internal static class Kanon
 {
@@ -25,17 +26,18 @@ internal static class Kanon
         var zeilen = new List<KanonZeile>();
         foreach (var (id, o) in b.Alle)
         {
-            var fang = new Kanonfang(pfade);
-            if (Instabil.Contains(o.Klasse)) fang.Tokens.Add("INSTABIL");
+            var fang = new Kanonfang(db, pfade);
+            var zustand = "ok";
+            if (Instabil.Contains(o.Klasse)) { fang.Tokens.Add("INSTABIL"); zustand = "instabil"; }
             else
             {
                 try { tr.GetObject(id, OpenMode.ForRead, false).DwgOut(fang); }
-                catch (System.Exception ex) { fang.Tokens.Add($"FEHLER {ex.GetBaseException().GetType().Name}"); }
+                catch (System.Exception ex) { fang.Tokens.Add($"FEHLER {ex.GetBaseException().GetType().Name}"); zustand = "fehler"; }
             }
             var inhalt = string.Join("|", Normiere(o.Klasse, fang.Tokens));
             var pfad = pfade[id];
             zeilen.Add(new KanonZeile(pfad, o.Klasse, Sha(inhalt)[..16],
-                detailPraefixe.Any(d => pfad.StartsWith(d, StringComparison.Ordinal)) ? inhalt : null));
+                detailPraefixe.Any(d => pfad.StartsWith(d, StringComparison.Ordinal)) ? inhalt : null, zustand));
         }
         zeilen.Sort((x, y) => string.CompareOrdinal(x.Pfad, y.Pfad));
         return zeilen;
@@ -65,17 +67,22 @@ internal static class Kanon
         }
         if (klasse == "AcDbBlockTableRecord") SortiereStellen(v => v.StartsWith("SP", StringComparison.Ordinal) && (v.Contains("/AcDbBlockReference#") || v.Contains("/AecDbMvBlockRef#")));
         SortiereStellen(v => v.StartsWith("SAecSpaceCalculation", StringComparison.Ordinal));
-        var letzterVerweis = "";
+        // Nur Binärwerte bis zum nächsten Wert, der kein Binärwert ist, gehören zur flüchtigen XData (Review 23.10.2026).
+        var fluechtig = false;
         for (var i = 0; i < n.Count; i++)
         {
-            if (n[i].StartsWith("HP", StringComparison.Ordinal)) letzterVerweis = n[i];
-            else if (n[i].StartsWith("BY", StringComparison.Ordinal) && FluechtigeXData.Any(a => letzterVerweis.EndsWith(a, StringComparison.Ordinal))) n[i] = "BY*";
+            if (n[i].StartsWith("HP", StringComparison.Ordinal)) fluechtig = FluechtigeXData.Any(a => n[i].EndsWith(a, StringComparison.Ordinal));
+            else if (fluechtig && n[i].StartsWith("BY", StringComparison.Ordinal)) n[i] = "BY*";
+            else if (!n[i].StartsWith("I", StringComparison.Ordinal)) fluechtig = false;
         }
         return n;
     }
 
     public static string Gesamt(IEnumerable<KanonZeile> zeilen) =>
         Sha(string.Join("\n", zeilen.Select(z => $"{z.Pfad}\t{z.Klasse}\t{z.Pruefsumme}")));
+
+    /// <summary>Trenn- und Steuerzeichen maskieren, damit Werte, Pfade und Kopfzeilen das Zeilenformat nicht brechen.</summary>
+    public static string Esc(string text) => text.Replace("\\", "\\\\").Replace("|", "\\p").Replace("\t", "\\t").Replace("\r", "\\r").Replace("\n", "\\n");
 
     public static string Sha(string text) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).ToLowerInvariant();
 
@@ -94,7 +101,7 @@ internal static class Kanon
             {
                 segment[o.Id] = o.Id == db.NamedObjectsDictionaryId ? "NOD"
                     : gruppe.Key.Anonym is { } art ? $"*{art}#{namenlos++}"
-                    : o.Name != "" ? o.Name.Replace('/', '∕')
+                    : o.Name != "" ? Esc(o.Name).Replace('/', '∕')
                     : $"{o.Klasse}#{namenlos++}";
             }
         }
@@ -113,6 +120,9 @@ internal static class Kanon
             var n = 1;
             foreach (var (id, _) in g.OrderBy(p => p.Key.Handle.Value).Skip(1)) pfade[id] = $"{g.Key}~{++n}";
         }
+        // Eindeutigkeit sicherstellen (ein „X~2“ könnte mit einem echten Namen zusammenfallen) – sonst lieber abbrechen.
+        if (pfade.Values.Distinct(StringComparer.Ordinal).Count() != pfade.Count)
+            throw new InvalidOperationException("Inventur: Pfade nicht eindeutig – Inventur abgebrochen");
         return pfade;
     }
 
@@ -135,12 +145,12 @@ internal static class Kanon
 /// Schreibt beim DwgOut alle Werte als Text: Verweise als Pfad (nie Handle), Zahlen mit 12 gültigen Stellen,
 /// Binärdaten als Prüfsumme. Position bleibt 0 (Falle aus ASG: sonst liefern Anzeigethemen keine Regeln).
 /// </summary>
-internal sealed class Kanonfang(IReadOnlyDictionary<ObjectId, string> pfade) : DwgFiler
+internal sealed class Kanonfang(Database db, IReadOnlyDictionary<ObjectId, string> pfade) : DwgFiler
 {
     public List<string> Tokens { get; } = [];
     static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
-    void W(string art, string wert) => Tokens.Add(art + wert);
+    void W(string art, string wert) => Tokens.Add(art + Kanon.Esc(wert));
     void Id(string art, ObjectId id) => W(art, id.IsNull ? "0" : pfade.TryGetValue(id, out var p) ? p : "?" + id.ObjectClass?.Name);
     static string D(double d) => d.ToString("G12", Inv);
     static string Bin(byte[]? b) => b is null ? "-" : Kanon.Sha(Convert.ToBase64String(b))[..16];
@@ -172,8 +182,9 @@ internal sealed class Kanonfang(IReadOnlyDictionary<ObjectId, string> pfade) : D
     public override void WriteVector2d(Vector2d v) => W("V", $"{D(v.X)},{D(v.Y)}");
     public override void WriteVector3d(Vector3d v) => W("V", $"{D(v.X)},{D(v.Y)},{D(v.Z)}");
     public override void WriteScale3d(Scale3d v) => W("SC", $"{D(v.X)},{D(v.Y)},{D(v.Z)}");
-    // Handles und Adressen sind je Bau verschieden – nur ihr Vorkommen zählt.
-    public override void WriteHandle(Handle handle) => W("H", "");
+    // Handles zählen mit dem Pfad ihres Ziels (z. B. XData 1005); unbekannte nur mit ihrem Vorkommen. Adressen nie.
+    public override void WriteHandle(Handle handle) =>
+        W("H", db.TryGetObjectId(handle, out var id) && pfade.TryGetValue(id, out var p) ? p : "?");
     public override void WriteAddress(IntPtr value) => W("A", "");
 
     public override IntPtr ReadAddress() => throw new NotSupportedException();
