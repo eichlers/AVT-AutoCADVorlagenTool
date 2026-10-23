@@ -2,7 +2,7 @@
 
 AVT pflegt den **Eichler-Hausstandard (EHS)** – die gemeinsame, saubere Zeichnungsvorlage für ATT, ADM, ANA und ASG.
 Gestartet am 23.10.2026 auf Wunsch des Nutzers („dann bauen wir das als Modul auf“). © S. Eichler · Eichler-GmbH.
-Sprache mit dem Nutzer: **Deutsch**. Koordination über **AMK** (Aufträge kommen von der AMK-Sitzung).
+GitHub: `eichlers/AVT-AutoCADVorlagenTool` (privat), Branch `main`. Sprache mit dem Nutzer: **Deutsch**. Koordination über **AMK** (Aufträge kommen von der AMK-Sitzung).
 
 @../AMK AutoCADModulKoordination/AMK_Stand.md
 
