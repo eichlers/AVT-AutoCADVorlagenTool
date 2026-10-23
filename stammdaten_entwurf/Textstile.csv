@@ -1,8 +1,0 @@
-# Textstile (Nutzer 23.10.2026: "muss immer Arial sein, damit man im PDF suchen kann") - Rollen EHS_Text_<Hoehe in 1/10 mm>
-# Hoehe_mm: feste Texthoehe (Entwurf); 0 = variabel (EHS_Text fuer Symbole). Jeder andere Textstil der Vorlage wird beim Erzeugen auf Arial gesetzt.
-ID;Name;Schrift;Hoehe_mm;Breitenfaktor;Beschreibung
-TS-000;EHS_Text;Arial;0;1;Texte in Symbolen (Höhe variabel, Vorschlag AMK/ASG 23.10.2026)
-TS-018;EHS_Text_18;Arial;1.8;1;Kleine Beschriftung
-TS-025;EHS_Text_25;Arial;2.5;1;Standardtext
-TS-035;EHS_Text_35;Arial;3.5;1;Überschrift
-TS-050;EHS_Text_50;Arial;5.0;1;Titel
