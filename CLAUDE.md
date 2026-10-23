@@ -41,9 +41,9 @@ Nicht AVT: Symbolstile erzeugen/ändern (ASG), Stempel (ATT), Tabellen/Listen/Da
   Einspielen nur nach AMK-„frei“-Runde. Umstellen alter Zeichnungen entfällt (Nutzer 23.10.: neues System).
   **Eingespielt 23.10.2026 14:58** nach AMK-Freigabe: %APPDATA%\Autodesk\ApplicationPlugins\AVT.bundle, AppVersion 0.3.0,
   AVT.Mep.dll + AVT.Kern.dll 0.3.0.0 (Code-Stand c24a14c). MEP-Prüfpunkte im gemeinsamen Testplan (AMK).
-- **0.4.0 Teil 1 Erzeugen (Entwurf, 23.10.2026):** `stammdaten_entwurf/` (Entwurf, nicht im Schema-Repo), `src/AVT.Kern/Erzeugen`
+- **0.4.0 Teil 1 Erzeugen (Entwurf, 23.10.2026):** Stammdaten NUR aus `Schema\Stammdaten` (AMK, „eine Sache, ein Ort“; 388cbea), `src/AVT.Kern/Erzeugen`
   (Stammdaten, Erzeuger, Stammpruefung), AVTERZEUGEN → AVTABSCHLIESSEN (Prüfsumme am als Dokument geöffneten Stand) →
-  AVTSTAMMPRUEFEN, `tools/AVT_erzeugen.ps1 [-Zweimal]`. Entwurf 1.0.0-e1 in `C:\Temp\AVT\Erzeugen`, 2 Bauten gleich (db8cb5e3),
+  AVTSTAMMPRUEFEN, `tools/AVT_erzeugen.ps1 [-Zweimal]`. Entwurf 1.0.0-e1 in `C:\Temp\AVT\Erzeugen`, ganz aus dem Schema: 2 Bauten gleich (9db73ae0),
   0 Fehler, AUDIT 0. Inhaltsauszug: anonyme Wörterbucheinträge nach Inhalt (`*A~…`), EHS 0.2 jetzt ece51ba5.
 - **Vorgemerkt:** Prüfen gegen Unterklassen.csv/Bauarten.csv (DIN EN IEC 81346-2:2020-10); Kunden-Bezug (Roche) im Kern = Fehler,
   Begriffe aus den Stammdaten. Textstile nur Arial (TrueType) – Nutzer 23.10.: „muss immer Arial sein, damit man im PDF
