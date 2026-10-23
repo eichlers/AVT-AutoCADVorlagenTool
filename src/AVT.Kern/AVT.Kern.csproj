@@ -8,7 +8,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>AVT.Kern</AssemblyName>
     <RootNamespace>Avt.Kern</RootNamespace>
-    <Version>0.3.0</Version>
+    <Version>0.4.0</Version>
     <Company>Eichler-GmbH</Company>
     <Copyright>© S. Eichler · Eichler-GmbH</Copyright>
     <EnableDynamicLoading>true</EnableDynamicLoading>

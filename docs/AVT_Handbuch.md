@@ -1,6 +1,6 @@
 # AVT – Vorlagen-Tool · Handbuch
 
-© S. Eichler · Eichler-GmbH · für AutoCAD MEP 2026 · Stand: AVT 0.3.0 (23.10.2026)
+© S. Eichler · Eichler-GmbH · für AutoCAD MEP 2026 · Stand: AVT 0.4.0 Entwurf (23.10.2026)
 
 AVT pflegt den Eichler-Hausstandard (EHS), die gemeinsame Zeichnungsvorlage für ATT, ADM, ANA und ASG. AVT erzeugt die
 Vorlage aus den Stammdaten, prüft Zeichnungen gegen ihre Fassung, bereitet freigegebene Fassungen für die Verteilung
@@ -17,12 +17,13 @@ AutoCAD MEP; das Bereinigen der Vorlage und der Inhaltsauszug laufen weiter auch
 3. [Überblick und Grundlagen](#3-überblick-und-grundlagen)
 4. [Bereinigen der offenen Zeichnung](#4-bereinigen-der-offenen-zeichnung)
 5. [Bereinigen der Vorlage (ohne Oberfläche)](#5-bereinigen-der-vorlage-ohne-oberfläche)
-6. [Prüfen und Inhaltsauszug](#6-prüfen-und-inhaltsauszug)
-7. [API-Sonde](#7-api-sonde)
-8. [Befehle](#8-befehle)
-9. [Häufige Fragen](#9-häufige-fragen)
-10. [Grenzen](#10-grenzen)
-11. [Versionsstand](#11-versionsstand)
+6. [Vorlage erzeugen (Entwurf)](#6-vorlage-erzeugen-entwurf)
+7. [Prüfen und Inhaltsauszug](#7-prüfen-und-inhaltsauszug)
+8. [API-Sonde](#8-api-sonde)
+9. [Befehle](#9-befehle)
+10. [Häufige Fragen](#10-häufige-fragen)
+11. [Grenzen](#11-grenzen)
+12. [Versionsstand](#12-versionsstand)
 
 ---
 
@@ -74,7 +75,7 @@ Der Hausstandard entsteht nicht mehr von Hand, sondern aus einem **Bauplan** (`S
 1. **Stammdaten** – Tabellen (CSV, in Excel lesbar) im EHS-Ordner: Systeme, Kürzel, Feldkatalog, Anzeigethemen,
    Layer, Textstile, Umbenennungen. Dazu die Symbolbibliothek, die ASG verwaltet.
 2. **Vorlage erzeugen** – AVT baut die Vorlage aus den Stammdaten auf einer unveränderten Autodesk-Leervorlage.
-   Gleiche Stammdaten ergeben die gleiche Vorlage; belegt wird das über den Inhaltsauszug (Kapitel 6).
+   Gleiche Stammdaten ergeben die gleiche Vorlage; belegt wird das über den Inhaltsauszug (Kapitel 7).
 3. **Prüfen** – AVT vergleicht die gebaute Vorlage mit den Stammdaten und mit der Vorgängerfassung.
 4. **Freigabe** – nur durch den Nutzer. Danach trägt AVT die Zeichnungseigenschaften (DWGPROPS) ein und legt die
    Fassung schreibgeschützt im EHS-Ordner ab.
@@ -190,7 +191,34 @@ Enabler laden nicht mehr, das Ergebnis bleibt sauber.
 
 ---
 
-## 6. Prüfen und Inhaltsauszug
+## 6. Vorlage erzeugen (Entwurf)
+
+AVT baut die Vorlage aus den Stammdaten auf einer Kopie der unveränderten Autodesk-Leervorlage. Heute (0.4.0, Teil 1)
+entsteht nur ein **Entwurf** `1.0.0-e<n>` in `C:\Temp\AVT\Erzeugen` – nichts davon ist freigegeben oder im EHS-Ordner.
+
+| Schritt | Quelle | Was entsteht |
+|---|---|---|
+| Autodesk-Fachinhalt entfernen | `Basis_entfernen.csv` (Muster) | nur, was nach dem Verweisgraph unbenutzt ist; Purge prüft zusätzlich |
+| Textstile | `Textstile.csv` | `EHS_Text` (Höhe variabel, für Symbole), `EHS_Text_18/25/35/50` – alle Arial; jeder andere Textstil der Leervorlage wird Arial |
+| Linientypen | `Linientypen.csv`, `EHS.lin` | aus `acadiso.lin` oder der Stammdaten-Datei |
+| Layer | `Layer.csv` | Farbe, Linientyp, Linienstärke, Plotten |
+| Systeme | `Systeme.csv` | je System ein Schemasystem (Kürzel, Gruppe) und ein Schlüssel im Layer-Schlüsselstil `EHS` mit Farbe, Linientyp, Linienstärke aus dem Thema „Medien“ |
+| Feste IDs | Tabellenspalte `ID` | XData unter der RegApp `EHS` (z. B. `ID:TS-025`, `ID:SYS-ETA`) |
+| Fassung | Aufruf | Fassungsstempel `EHS_Zeichnung` und alle DWGPROPS-Pflichtfelder, darunter `EHS_Inhaltspruefsumme` |
+
+Danach öffnet AVT den Entwurf neu und prüft ihn gegen die Stammdaten (jede Tabellenzeile Soll/Ist, alle Textstile Arial,
+keine Systeme außerhalb der Stammdaten, feste IDs, Pflichtfelder, Inhaltsprüfsumme = DWGPROPS) und mit AUDIT.
+
+```
+powershell -File tools\AVT_erzeugen.ps1 [-Fassung 1.0.0-e1] [-Basis <dwt>] [-Zweimal]
+```
+
+`-Zweimal` baut ein zweites Mal unabhängig: Gleiche Stammdaten ergeben die gleiche Inhaltsprüfsumme. Die Angaben ohne
+Datum (Fassung, Vorgänger, Git-Stand der Stammdaten, Prüfsumme der Leervorlage, AVT-Version) stehen im Fassungsstempel.
+
+---
+
+## 7. Prüfen und Inhaltsauszug
 
 **Inhaltsauszug (kanonische Inventur):** AVT schreibt jedes Objekt der Zeichnung als Textzeile: einen festen Pfad aus
 Namen (z. B. `NOD/AEC_DISPLAYTHEME_STYLES/DN Rohrleitung`), die Klasse und eine Prüfsumme über den ganzen Inhalt.
@@ -200,7 +228,8 @@ etwas, zeigt der Vergleich der beiden Textdateien genau, welches Objekt.
 
 Ausgeglichen werden Werte, die sich bei jedem Bau ändern, ohne Inhalt zu sein: Reihenfolge von Verweislisten,
 GUIDs dynamischer Blöcke, Versionsstempel von AEC-Objekten, Nummern anonymer Blöcke und anonymer AEC-Einträge
-(`*U12`, `*A113` – sie heißen im Auszug `*U#0`, `*A#0` … nach ihrer Reihenfolge). Räumliche Indizes und die DACH-Sanierungsstile zählen
+(`*U12`, `*A113`): anonyme Blöcke heißen im Auszug `*U#0` … nach ihrer Reihenfolge, anonyme Wörterbucheinträge
+  `*A~<Prüfsumme ihres Inhalts>` – AutoCAD vergibt deren Schlüssel und Handles beim Speichern neu. Räumliche Indizes und die DACH-Sanierungsstile zählen
 nur mit ihrem Pfad, weil ihr Inhalt schon beim zweiten Lesen derselben Datei anders ausfällt.
 
 ```
@@ -229,7 +258,7 @@ nie als altes Ergebnis.
 
 ---
 
-## 7. API-Sonde
+## 8. API-Sonde
 
 Die Sonde klärt für den Bau der Vorlage, welche Objektarten sich in MEP 2026 ohne Oberfläche per Programm anlegen
 lassen. Sie legt an einer Kopie je Objektart ein Beispiel an (Namen beginnen mit `AVT_Sonde`), speichert, öffnet das
@@ -263,7 +292,7 @@ Zeichnung ist kein Ergebnis für die Praxis.
 
 ---
 
-## 8. Befehle
+## 9. Befehle
 
 **In AutoCAD MEP (Plugin)**
 
@@ -283,12 +312,16 @@ Zeichnung ist kein Ergebnis für die Praxis.
 | `AVTFREMD` | Fremdinhalte a/b/c (nur lesen) |
 | `AVTFREMDBEREINIGEN` | angehakte a entfernen (wie die Vorgabe der Palette), b auf Wunsch als Ausnahme merken, als neue Datei speichern |
 | `AVTFREMDPROBE` | Probezeichnung mit Grenzfällen für das Bereinigen anlegen |
+| `AVTERZEUGEN` | Entwurf aus den Stammdaten auf der Leervorlage bauen (Zwischenstand) |
+| `AVTABSCHLIESSEN` | am geöffneten Zwischenstand Inhaltsprüfsumme und DWGPROPS setzen, Ergebnis speichern |
+| `AVTSTAMMPRUEFEN` | Zeichnung gegen die Stammdaten prüfen (nur lesen) |
+| `AVTLINEXPORT` | Linientyp-Definitionen einer Zeichnung als .lin schreiben (z. B. für die Stammdaten) |
 | `AVTSONDE` | API-Sonde: Beispiele je Objektart anlegen und als neue Datei speichern |
 | `AVTSONDELESEN` | Beispiele der Sonde zurücklesen (nur lesen) |
 
 ---
 
-## 9. Häufige Fragen
+## 10. Häufige Fragen
 
 **Ändert AVT meine Zeichnung?** Prüfen und der Hinweis beim Öffnen lesen nur. „Bereinigen …“ in der Palette ändert die
 offene Zeichnung erst nach Vorschau, Bestätigung und Sicherungskopie – und speichert nie. Die Werkzeuge ohne
@@ -312,7 +345,7 @@ dann meldet AVT sie in dieser Zeichnung nicht mehr.
 
 ---
 
-## 10. Grenzen
+## 11. Grenzen
 
 - Bereinigen entfernt Zusatzprogramm-Einträge nur aus der Zeichnung. Ist das Zusatzprogramm auf dem Rechner
   angemeldet und kommen seine Objekte zurück (z. B. durch Einfügen aus alten Zeichnungen), legt es seine Einträge
@@ -326,7 +359,7 @@ dann meldet AVT sie in dieser Zeichnung nicht mehr.
   zur Aufnahme geben“ kommen, sobald das Symbolregister von ASG steht.
 - Änderungen durch „Bereinigen …“ lassen sich nicht mit Zurück (Z) rückgängig machen – dafür gibt es die Sicherungskopie
   und das Schließen ohne Speichern.
-- Die Inhaltsprüfsumme übergeht den Inhalt räumlicher Indizes und der DACH-Sanierungsstile (siehe Kapitel 6).
+- Die Inhaltsprüfsumme übergeht den Inhalt räumlicher Indizes und der DACH-Sanierungsstile (siehe Kapitel 7).
 - AUDIT meldet bei der Autodesk-Leervorlage „Aecb Model (D A CH Ctb) mm“ schon im Auslieferungszustand 2 Fehler
   (Listen-Definition „Standard“); diese stammen nicht von AVT.
 - Namenlose und anonyme Einträge zählen im Inhaltsauszug nach ihrer Reihenfolge in der Zeichnung. Gleich gebaute
@@ -335,10 +368,11 @@ dann meldet AVT sie in dieser Zeichnung nicht mehr.
 
 ---
 
-## 11. Versionsstand
+## 12. Versionsstand
 
 | Version | Datum | Inhalt |
 |---|---|---|
+| 0.4.0 (Entwurf) | 23.10.2026 | Erzeugen Teil 1: Entwurf 1.0.0-e1 aus Stammdaten (Textstile Arial, Linientypen, Layer, 99 Systeme mit Layer-Schlüsseln, IDs, Fassungsstempel, DWGPROPS), Prüfen gegen die Stammdaten, reproduzierbar belegt |
 | 0.3.0 | 23.10.2026 | Plugin mit Palette und Werkzeugkasten-Knopf (Anthrazit); Prüfen in der Palette; Bereinigen der offenen Zeichnung mit Vorschau a/b/c, Sicherungskopie, Nachprüfung; leiser Hinweis beim Öffnen; gemeinsame Logik in AVT.Kern; Unit-Tests |
 | 0.2.0 | 23.10.2026 | Inhaltsauszug mit Inhaltsprüfsumme (`AVTKANON`), Prüfen gegen eine Fassung, API-Sonde, DWGPROPS lesen, Kürzel des Standards an einer Stelle, Berichtszeilen mit Präfix „AVT“ |
 | 0.1.0 | 23.10.2026 | Bereinigen aus ASG übernommen (gleiches Ergebnis wie EHS 0.1/0.2 in 3 Läufen), eigene Konsolen-Anbindung, Nachprüfung mit automatischem zweitem Durchgang |
