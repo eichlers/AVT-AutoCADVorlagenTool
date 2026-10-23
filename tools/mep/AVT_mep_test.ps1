@@ -71,7 +71,7 @@ function Com([scriptblock] $aufruf) {
 }
 
 # --- UI-Automation im MEP-Prozess -------------------------------------------------------------------------------------
-function Fenster { $A::RootElement.FindAll($Baum::Children, (New-Object Windows.Automation.PropertyCondition($A::ProcessIdProperty, $script:pid))) }
+function Fenster { $A::RootElement.FindAll($Baum::Children, (New-Object Windows.Automation.PropertyCondition($A::ProcessIdProperty, $script:mepPid))) }
 function Finde([string] $name, $wurzel = $null, [Windows.Automation.ControlType] $typ = $null) {
     $c = New-Object Windows.Automation.PropertyCondition($A::NameProperty, $name)
     if ($typ) { $c = New-Object Windows.Automation.AndCondition($c, (New-Object Windows.Automation.PropertyCondition($A::ControlTypeProperty, $typ))) }
@@ -131,11 +131,11 @@ function Schliesse($d) { try { Com { $d.Close($false) } | Out-Null } catch { }; 
 $mep = @(Get-Process acad -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*AutoCAD 2026*' })
 if ($mep.Count -ne 1) { throw "Erwartet genau ein laufendes MEP 2026 (vom Nutzer gestartet), gefunden: $($mep.Count)" }
 if (Get-Process accoreconsole -ErrorAction SilentlyContinue) { throw 'accoreconsole laeuft - waehrend eines MEP-Slots nicht erlaubt (AMK-Regel)' }
-$script:pid = $mep[0].Id
+$script:mepPid = $mep[0].Id
 $script:haupt = $mep[0].MainWindowHandle
 $script:acad = Com { [Runtime.InteropServices.Marshal]::GetActiveObject('AutoCAD.Application.25.1') }
 $avtGeladen = Test-Path (Join-Path $env:APPDATA 'Autodesk\ApplicationPlugins\AVT.bundle\Contents\AVT.Mep.dll')
-"Angehaengt an MEP 2026 (PID $script:pid), offene Zeichnungen: $(Com { $script:acad.Documents.Count }), AVT-Bundle installiert: $avtGeladen"
+"Angehaengt an MEP 2026 (PID $script:mepPid), offene Zeichnungen: $(Com { $script:acad.Documents.Count }), AVT-Bundle installiert: $avtGeladen"
 if (-not $Ausfuehren) { 'Nur geprueft - Test mit -Ausfuehren starten (nur nach "Slot: AVT").'; return }
 
 # --- Ab hier Sofort-Abbruch bei Eingabe. Sichern -----------------------------------------------------------------------
@@ -147,15 +147,19 @@ $script:ergebnisDatei = Join-Path $script:lauf 'ergebnis.txt'
 & reg.exe export 'HKCU\Software\Autodesk\AutoCAD\R25.1' (Join-Path $script:lauf 'profil_vorher.reg') /y | Out-Null
 if (Test-Path $einstellungen) { Copy-Item $einstellungen (Join-Path $script:lauf 'AVT_einstellungen_vorher.json') }
 $protVorher = (ProtokollZeilen).Count
-Notiere "Start AVT-MEP-Test, MEP PID $script:pid, Ordner $script:lauf" | Out-Null
+Notiere "Start AVT-MEP-Test, MEP PID $script:mepPid, Ordner $script:lauf" | Out-Null
 KeinDialog 'Start'
 
 try {
     # --- 1. Werkzeugkasten -------------------------------------------------------------------------------------------
     try {
-        $kasten = Com { $script:acad.MenuGroups.Item('AVT').Toolbars.Item('AVT') }
+        # COM-Sammlungen aufzaehlen statt .Item() - PowerShell findet Item an spaet gebundenen AutoCAD-Sammlungen nicht (Befund 23.10. 19:13).
+        $gruppe = Com { @($script:acad.MenuGroups) | Where-Object { $_.Name -eq 'AVT' } | Select-Object -First 1 }
+        if ($null -eq $gruppe) { throw 'Menuegruppe AVT nicht geladen' }
+        $kasten = Com { @($gruppe.Toolbars) | Where-Object { $_.Name -eq 'AVT' } | Select-Object -First 1 }
+        if ($null -eq $kasten) { throw 'Werkzeugkasten AVT nicht in der Menuegruppe' }
         $anzahl = Com { $kasten.Count }
-        $knopf = Com { $kasten.Item(0) }
+        $knopf = Com { @($kasten) | Select-Object -First 1 }
         $makro = Com { $knopf.Macro }; $hilfe = Com { $knopf.HelpString }; $name = Com { $knopf.Name }; $sichtbar = Com { $kasten.Visible }
         $ok = $anzahl -eq 1 -and $makro -match 'AVTPALETTE' -and $name -eq 'AVT – Vorlagen-Tool (Palette öffnen)'
         Notiere ("1 Werkzeugkasten AVT: " + $(if ($ok) { 'OK' } else { 'FEHLER' }) + " - Knoepfe $anzahl, sichtbar $sichtbar, Name '$name', Makro '$makro', Hilfe '$hilfe'") | Out-Null
