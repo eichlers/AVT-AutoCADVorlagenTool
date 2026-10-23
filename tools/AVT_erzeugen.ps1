@@ -41,14 +41,14 @@ function Bau([string] $ordner) {
         Audit = ((Get-Content (Join-Path $ordner 'lauf2\konsole.txt') | Where-Object { $_ -match 'Fehler gefunden' }) -join ' ') }
 }
 
-"Basis: $basisText · Stammdaten: $stand · AVT $avt · Fassung $Fassung"
+"Basis: $basisText | Stammdaten: $stand | AVT $avt | Fassung $Fassung"
 $b1 = Bau (Join-Path $Arbeit 'bau1')
 Zeilen (Join-Path $b1.Ordner 'erzeugen.txt') | Where-Object { $_ -match '^AVTERZEUGEN (Basis \||Basis entfernt|Systeme|Inhalt|gespeichert)' }
 Zeilen (Join-Path $b1.Ordner 'erzeugen.txt') | Where-Object { $_ -match '^AVTERZEUGEN Textstil der Basis' } | Select-Object -First 8
-Zeilen (Join-Path $b1.Ordner 'stammpruefung.txt') | Where-Object { $_ -match '^AVTSTAMM (FEHLER|Ergebnis)' } | Select-Object -First 25
-"Inhaltspruefsumme Bau 1: $($b1.Gesamt) · AUDIT: $($b1.Audit)"
+Zeilen (Join-Path $b1.Ordner 'stammpruefung.txt') | Where-Object { $_ -match '^AVTSTAMM (FEHLER|OK|Ergebnis)' } | Select-Object -First 25
+"Inhaltspruefsumme Bau 1: $($b1.Gesamt) | AUDIT: $($b1.Audit)"
 if ($Zweimal) {
     $b2 = Bau (Join-Path $Arbeit 'bau2')
-    "Inhaltspruefsumme Bau 2: $($b2.Gesamt) · AUDIT: $($b2.Audit)"
+    "Inhaltspruefsumme Bau 2: $($b2.Gesamt) | AUDIT: $($b2.Audit)"
     "Gleiche Stammdaten -> gleiche Vorlage: $(if ($b1.Gesamt -eq $b2.Gesamt) { 'JA' } else { 'NEIN - Unterschied siehe kanon.txt' })"
 }

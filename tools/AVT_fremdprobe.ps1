@@ -17,4 +17,4 @@ $v = Join-Path $Arbeit 'fremd\vorschau.txt'; $b = Join-Path $Arbeit 'fremd\berei
 '--- Vorschau der Probe-Eintraege'
 Zeilen $v | Where-Object { $_ -match 'Probe' }
 '--- Bereinigen'
-Zeilen $b | Where-Object { $_ -match 'Probe|gewaehlt|gewählt|Ergebnis|FEHLER' }
+Zeilen $b | Where-Object { $_ -match 'Probe|gew.hlt|Ergebnis|FEHLER' }

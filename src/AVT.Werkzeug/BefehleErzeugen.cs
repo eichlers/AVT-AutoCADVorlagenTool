@@ -37,7 +37,7 @@ public sealed class BefehleErzeugen
             if (string.Equals(ziel, Path.GetFullPath(doc.Name), StringComparison.OrdinalIgnoreCase) || string.Equals(ziel, datei, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Ergebniszeichnung muss eine neue Datei sein");
             aus.AddRange(Erzeuger.Bauen(doc.Database, stammdaten, systeme, auftrag));
-            doc.Database.SaveAs(ziel, DwgVersion.Current);
+            aus.Add($"AVTERZEUGEN Inhaltsprüfsumme | {Erzeuger.Speichern(doc.Database, ziel, stammdaten, auftrag)}");
             aus.Add($"AVTERZEUGEN gespeichert | {ziel}");
             aus.Add("AVTENDE ok");
         }

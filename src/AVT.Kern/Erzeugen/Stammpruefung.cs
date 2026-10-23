@@ -34,7 +34,7 @@ internal static class Stammpruefung
         {
             var s = (TextStyleTableRecord)tr.GetObject(id, OpenMode.ForRead);
             if (s.Name.Length == 0 || s.IsShapeFile) continue;
-            if (!s.Font.TypeFace.Equals("Arial", StringComparison.OrdinalIgnoreCase) || !string.IsNullOrEmpty(s.FileName))
+            if (!Stammwerte.IstArial(s.Font.TypeFace, s.FileName))
                 F($"Textstil {s.Name}: Schrift „{(string.IsNullOrEmpty(s.Font.TypeFace) ? s.FileName : s.Font.TypeFace)}“ – nur Arial erlaubt");
         }
 
@@ -100,7 +100,9 @@ internal static class Stammpruefung
             foreach (var u in unter)
             {
                 var pfad = $"NOD/{e.Key}/{u.Key}";
-                if (muster.Any(m => Stammwerte.Passt(m, pfad))) H($"{pfad} blieb (Autodesk-Fachinhalt, benutzt)");
+                // Eigene Einträge (mit fester ID) sind kein Rest der Basis.
+                if (muster.Any(m => Stammwerte.Passt(m, pfad)) && IdVon(tr.GetObject(u.Value, OpenMode.ForRead)).Length == 0)
+                    H($"{pfad} blieb (Autodesk-Fachinhalt, benutzt)");
             }
         }
 
@@ -110,6 +112,12 @@ internal static class Stammpruefung
         var pflicht = Zeichnungsangaben.FehlendePflichtfelder(db);
         if (pflicht.Count > 0) F($"DWGPROPS-Pflichtfelder fehlen: {string.Join(", ", pflicht)}");
         if (!((RegAppTable)tr.GetObject(db.RegAppTableId, OpenMode.ForRead)).Has(Standard.RegApp)) F($"RegApp {Standard.RegApp} fehlt");
+        // Inhaltsprüfsumme der Datei = Feld in den DWGPROPS?
+        var b = Bestand.Lies(db, tr);
+        var gesamt = Kanon.Gesamt(Kanon.Lies(db, tr, b, []));
+        var feld = Zeichnungsangaben.DwgProps(db).FirstOrDefault(f => f.StartsWith($"*{Standard.Feld}Inhaltspruefsumme = ", StringComparison.Ordinal))?.Split(" = ")[1] ?? "";
+        if (feld != gesamt) F($"Inhaltsprüfsumme der Datei {gesamt[..16]} … ≠ DWGPROPS {(feld.Length >= 16 ? feld[..16] : feld)} …");
+        else aus.Add($"AVTSTAMM OK | Inhaltsprüfsumme {gesamt[..16]} … = DWGPROPS");
 
         aus.Add($"AVTSTAMM Ergebnis | Fehler {fehler} | Hinweise {hinweise} | Textstile {ts.Zeilen.Count} | Systeme {sysTab.Zeilen.Count}");
         return aus;

@@ -40,6 +40,11 @@ public static class Stammwerte
     public static bool Passt(string muster, string pfad) =>
         Regex.IsMatch(pfad, "^" + Regex.Escape(muster).Replace(@"\*", "[^/]+") + "$", RegexOptions.CultureInvariant);
 
+    /// <summary>Ist die Schrift Arial (TrueType)? Den Dateinamen „arial.ttf“ trägt AutoCAD beim Speichern selbst ein.</summary>
+    public static bool IstArial(string schriftart, string? datei) =>
+        schriftart.Equals("Arial", StringComparison.OrdinalIgnoreCase)
+        && (string.IsNullOrEmpty(datei) || Path.GetFileName(datei).Equals("arial.ttf", StringComparison.OrdinalIgnoreCase));
+
     /// <summary>„EHS_S_{Kuerzel}“ mit Werten füllen.</summary>
     public static string Fuelle(string vorlage, IReadOnlyDictionary<string, string> werte) =>
         Regex.Replace(vorlage, @"\{(\w+)\}", m => werte.TryGetValue(m.Groups[1].Value, out var w) ? w : throw new FormatException($"Platzhalter {m.Value} unbekannt"));

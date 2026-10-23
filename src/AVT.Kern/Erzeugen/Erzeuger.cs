@@ -44,17 +44,37 @@ internal static class Erzeuger
             Stempel(db, tr, auftrag);
             tr.Commit();
         }
-        // Inhaltsprüfsumme (ohne DWGPROPS – die stehen nicht im Auszug) und dann die DWGPROPS.
-        string gesamt;
-        using (var tr = db.TransactionManager.StartTransaction())
-        {
-            var b = Bestand.Lies(db, tr);
-            gesamt = Kanon.Gesamt(Kanon.Lies(db, tr, b, []));
-            tr.Commit();
-        }
-        DwgProps(db, standard, auftrag, gesamt);
-        aus.Add($"AVTERZEUGEN Inhaltsprüfsumme | {gesamt}");
         return aus;
+    }
+
+    /// <summary>
+    /// Speichern mit Inhaltsprüfsumme: erst als Zwischenstand speichern, die gespeicherte Fassung lesen, ihren Inhaltsauszug
+    /// bilden und mit den DWGPROPS (Pflichtfelder samt EHS_Inhaltspruefsumme) als Ergebnis speichern – so passt die Prüfsumme
+    /// zur Datei (beim Speichern ergänzt AutoCAD manches, z. B. den Dateinamen der TrueType-Schrift).
+    /// </summary>
+    public static string Speichern(Database db, string ziel, string stammdaten, Bauauftrag auftrag)
+    {
+        var standard = Tabelle.Lies(Path.Combine(stammdaten, "Standard.csv"), "Schluessel", "Wert").Zeilen
+            .ToDictionary(z => z.Werte["Schluessel"], z => z.Werte["Wert"], StringComparer.Ordinal);
+        var zwischen = Path.Combine(Path.GetDirectoryName(ziel)!, Path.GetFileNameWithoutExtension(ziel) + "_zwischen.dwg");
+        if (File.Exists(zwischen)) File.Delete(zwischen);
+        db.SaveAs(zwischen, DwgVersion.Current);
+        string gesamt;
+        using (var seite = new Database(false, true))
+        {
+            seite.ReadDwgFile(zwischen, FileOpenMode.OpenForReadAndAllShare, true, "");
+            seite.CloseInput(true);
+            using (var tr = seite.TransactionManager.StartTransaction())
+            {
+                var b = Bestand.Lies(seite, tr);
+                gesamt = Kanon.Gesamt(Kanon.Lies(seite, tr, b, []));
+                tr.Commit();
+            }
+            DwgProps(seite, standard, auftrag, gesamt);
+            seite.SaveAs(ziel, DwgVersion.Current);
+        }
+        File.Delete(zwischen);
+        return gesamt;
     }
 
     /// <summary>Autodesk-Fachinhalt nach Muster entfernen – nur, was nach dem Verweisgraph unbenutzt ist; Purge prüft zusätzlich.</summary>
@@ -146,7 +166,7 @@ internal static class Erzeuger
         {
             var s = (TextStyleTableRecord)tr.GetObject(id, OpenMode.ForRead);
             if (s.Name.Length == 0 || s.IsShapeFile || eigene.Contains(s.Name)) continue;
-            if (s.Font.TypeFace.Equals("Arial", StringComparison.OrdinalIgnoreCase) && string.IsNullOrEmpty(s.FileName)) continue;
+            if (Stammwerte.IstArial(s.Font.TypeFace, s.FileName)) continue;
             var alt = string.IsNullOrEmpty(s.Font.TypeFace) ? s.FileName : s.Font.TypeFace;
             s.UpgradeOpen();
             s.FileName = "";
