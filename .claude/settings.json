@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -I \"$CLAUDE_PROJECT_DIR/../AMK AutoCADModulKoordination/tools/AMK_abgleich.py\" --pruefen --modul AVT; exit 0",
+            "command": "python -I \"$CLAUDE_PROJECT_DIR/../AMK-AutoCADModulKoordination/tools/AMK_abgleich.py\" --pruefen --modul AVT; exit 0",
             "timeout": 30
           }
         ]
