@@ -509,9 +509,9 @@ public sealed class Sonde
                 var s = (Aecp.ScheduleTableStyle)tr.GetObject(tab.GetAt(P + "_Bauteiltabelle"), OpenMode.ForRead);
                 aus.Add($"AVTSONDELESEN Bauteiltabelle | Spalten {string.Join(", ", s.Columns.Cast<Aecp.ScheduleTableStyleColumn>().Select(c => $"{c.Heading}={c.FullPropertyName}"))}");
             }
-            aus.AddRange(BefehleKanon.FassungLesen(db, tr).Select(f => $"AVTSONDELESEN Fassung | {f}"));
-            aus.AddRange(BefehleKanon.DwgProps(db).Select(f => $"AVTSONDELESEN DWGPROPS | {f}"));
-            var fehlend = BefehleKanon.FehlendePflichtfelder(db);
+            aus.AddRange(Zeichnungsangaben.FassungLesen(db, tr).Select(f => $"AVTSONDELESEN Fassung | {f}"));
+            aus.AddRange(Zeichnungsangaben.DwgProps(db).Select(f => $"AVTSONDELESEN DWGPROPS | {f}"));
+            var fehlend = Zeichnungsangaben.FehlendePflichtfelder(db);
             aus.Add($"AVTSONDELESEN DWGPROPS Pflicht | {(fehlend.Count == 0 ? "alle da" : "fehlt: " + string.Join(", ", fehlend))}");
             tr.Commit();
             aus.Add("AVTENDE ok");

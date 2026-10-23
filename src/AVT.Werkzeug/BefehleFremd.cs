@@ -42,6 +42,8 @@ public sealed class BefehleFremd
             doc.Editor.WriteMessage("\nAVT abgelehnt: Ergebniszeichnung muss eine neue .dwg sein.");
             return;
         }
+        // b-Funde als Ausnahme merken (wie „behalten“ in der Palette) – j/n.
+        var merken = doc.Editor.GetString("\nb-Funde als Ausnahme merken (j/n): ").StringResult.Trim().StartsWith("j", StringComparison.OrdinalIgnoreCase);
         var db = doc.Database;
         var aus = new List<string>();
         try
@@ -54,7 +56,10 @@ public sealed class BefehleFremd
             }
             Schreibe(vorher, aus, "AVTFREMD vorher");
             var alleA = vorher.Funde.Where(f => f.Gruppe == Gruppe.FremdUnbenutzt).Select(f => f.Kandidat.Pfad).ToList();
-            var ergebnis = Fremdbereiniger.Ausfuehren(db, alleA, new Dictionary<string, string>(), null);
+            var behalten = merken
+                ? vorher.Funde.Where(f => f.Gruppe == Gruppe.FremdBenutzt).ToDictionary(f => f.Kandidat.Pfad, _ => "behalten (Nachweis ohne Oberfläche)")
+                : new Dictionary<string, string>();
+            var ergebnis = Fremdbereiniger.Ausfuehren(db, alleA, behalten, null);
             aus.AddRange(ergebnis);
             if (ergebnis.Any(z => z.StartsWith("AVTFREMD FEHLER", StringComparison.Ordinal)))
                 throw new InvalidOperationException("Fehler beim Entfernen, nichts gespeichert");

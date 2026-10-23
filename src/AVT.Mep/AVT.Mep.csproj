@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- AVT-Plugin fuer AutoCAD MEP 2026: Palette (AVTPALETTE), Werkzeugkasten-Knopf, Pruefen und Bereinigen der offenen
+       Zeichnung. Wird als AVT.bundle geladen (tools\AVT_bundle.ps1). Logik im Kern (AVT.Kern), keine zweite Implementierung. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <!-- WPF ohne XAML: Oberflaeche im Code aufgebaut (wie ADM) -->
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Avt.Mep</RootNamespace>
+    <AssemblyName>AVT.Mep</AssemblyName>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <AcadPfad>C:\Program Files\Autodesk\AutoCAD 2026</AcadPfad>
+    <!-- Versionsnummer NUR hier pflegen – tools\AVT_bundle.ps1 traegt sie ins Bundle ein. -->
+    <Version>0.3.0</Version>
+    <Authors>S. Eichler</Authors>
+    <Copyright>© S. Eichler · Eichler-GmbH</Copyright>
+    <Product>AVT – Vorlagen-Tool</Product>
+    <!-- kein Benutzerpfad in der DLL (PDB-Pfad) -->
+    <PathMap>$(MSBuildProjectDirectory)=C:\AVT\AVT.Mep</PathMap>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="Builddatum" Value="$([System.DateTime]::Now.ToString('dd.MM.yyyy'))" />
+    <EmbeddedResource Include="Bilder\Eichler-Logo.png" LogicalName="AVT.Eichler-Logo.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AVT.Kern\AVT.Kern.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="acdbmgd"><HintPath>$(AcadPfad)\acdbmgd.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="acmgd"><HintPath>$(AcadPfad)\acmgd.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="accoremgd"><HintPath>$(AcadPfad)\accoremgd.dll</HintPath><Private>false</Private></Reference>
+    <!-- Werkzeugkasten: Teil-Menue AVT.cuix -->
+    <Reference Include="AcCui"><HintPath>$(AcadPfad)\AcCui.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="AecBaseMgd"><HintPath>$(AcadPfad)\ACA\AecBaseMgd.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="AecPropDataMgd"><HintPath>$(AcadPfad)\ACA\AecPropDataMgd.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+
+</Project>

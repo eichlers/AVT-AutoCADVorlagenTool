@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AVT als AutoCAD-Bundle: laedt beim Start von AutoCAD MEP 2026 (R25.1) automatisch, ohne NETLOAD.
+     Erzeugt mit tools\AVT_bundle.ps1 (Version kommt aus src\AVT.Mep\AVT.Mep.csproj). -->
+<ApplicationPackage
+  SchemaVersion="1.0"
+  AppVersion="0.0.0"
+  Author="S. Eichler · Eichler-GmbH"
+  Name="AVT – Vorlagen-Tool"
+  Description="Pflege des Eichler-Hausstandards: Zeichnung gegen die Fassung prüfen, fremde Inhalte mit Vorschau bereinigen"
+  ProductCode="{8C1E4F70-2B9D-4A63-9E05-7D3B6A2C1F84}"
+  UpgradeCode="{8C1E4F70-2B9D-4A63-9E05-7D3B6A2C1F85}"
+  ProductType="Application"
+  SupportedLocales="Deu|Enu">
+  <CompanyDetails Name="Eichler GmbH" Url="" Email="" />
+  <RuntimeRequirements OS="Win64" Platform="MEP" SeriesMin="R25.1" SeriesMax="R25.1" />
+  <Components Description="AVT">
+    <RuntimeRequirements OS="Win64" Platform="MEP" SeriesMin="R25.1" SeriesMax="R25.1" />
+    <ComponentEntry AppName="AVT" Version="0.0.0"
+                    ModuleName="./Contents/AVT.Mep.dll"
+                    AppDescription="AVT-Palette: Prüfen und Bereinigen nach dem Eichler-Hausstandard"
+                    LoadOnCommandInvocation="True"
+                    LoadOnAutoCADStartup="True">
+      <Commands GroupName="AVT">
+        <Command Global="AVTPALETTE" Local="AVTPALETTE" />
+        <Command Global="AVT" Local="AVT" />
+        <Command Global="AVTWERKZEUGKASTEN" Local="AVTWERKZEUGKASTEN" />
+        <Command Global="AVTPALETTESTART" Local="AVTPALETTESTART" />
+      </Commands>
+    </ComponentEntry>
+  </Components>
+</ApplicationPackage>
