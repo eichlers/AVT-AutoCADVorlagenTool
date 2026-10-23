@@ -36,7 +36,7 @@ public sealed class Sonde
         }
         Versuch("Layer", tr => Layer(db, tr));
         Versuch("Linientyp aus Strichmuster", tr => Linientyp(db, tr));
-        Versuch("Linientyp aus acadiso.lin", _ => { db.LoadLineTypeFile("BORDER", "acadiso.lin"); return "BORDER geladen"; });
+        Versuch("Linientyp aus acadiso.lin", _ => LinDatei(db));
         Versuch("Textstil", tr => Textstil(db, tr));
         Versuch("Bemaßungsstil", tr => Bemassungsstil(db, tr));
         Versuch("AutoCAD-Tabellenstil", tr => Tabellenstil(db, tr));
@@ -52,7 +52,8 @@ public sealed class Sonde
         Versuch("Anzeigethema als Kopie", tr => ThemaKopie(db, tr));
         Versuch("Anzeigesatz", tr => Anzeigesatz(db, tr));
         Versuch("Layout", _ => Layout(db));
-        Versuch("Fassungsstempel + RegApp EHS", tr => Stempel(db, tr));
+        Versuch("DWGPROPS schreiben", _ => DwgPropsSchreiben(db));
+        Versuch("Fassungsstempel + RegApp", tr => Stempel(db, tr));
         try
         {
             db.SaveAs(ziel, DwgVersion.Current);
@@ -100,9 +101,12 @@ public sealed class Sonde
     static string Tabellenstil(Database db, Transaction tr)
     {
         var d = (DBDictionary)tr.GetObject(db.TableStyleDictionaryId, OpenMode.ForWrite);
-        var s = new TableStyle { Name = P + "_Tabelle", Description = "Sonde" };
+        // Name und Formate erst nach dem Eintragen (vorher eOwnerNotSet, Sonde 23.10.2026); der Name ist der Schlüssel.
+        var s = new TableStyle();
+        d.SetAt(P + "_Tabelle", s); tr.AddNewlyCreatedDBObject(s, true);
+        s.Description = "Sonde";
+        // Formate erst nach dem Eintragen (vorher eOwnerNotSet, Sonde 23.10.2026).
         s.SetTextHeight(2.5, (int)RowType.DataRow);
-        d.SetAt(s.Name, s); tr.AddNewlyCreatedDBObject(s, true);
         return "Texthöhe Daten 2,5";
     }
 
@@ -150,13 +154,18 @@ public sealed class Sonde
         var f = new Aecp.PropertyDefinition();
         f.SetToStandard(db);
         f.SubSetDatabaseDefaults(db);
-        f.Name = "Handle";
+        f.Name = "Auto";
         f.Automatic = true;
-        f.SetAutomaticData("AecbDbSchematicSymbol", "Handle");
-        f.SetAutomaticData("AecbDbSchematic", "Handle");
+        // Quelle erst setzen, wenn das Feld in der Definition steht (die kennt die Klassen, für die sie gilt).
         def.Definitions.Add(f);
-        var quellen = f.GetAutomaticData().Select(a => a.ToString()).ToList();
-        return $"Quelle Handle, {quellen.Count} Zuordnungen";
+        var feld = def.Definitions.Cast<Aecp.PropertyDefinition>().First(x => x.Name == "Auto");
+        var versuche = new List<string>();
+        foreach (var klasse in new[] { "AecbDbSchematicSymbol", "AecbDbSchematic" })
+        {
+            try { feld.SetAutomaticData(klasse, "Handle"); versuche.Add($"{klasse}/Handle ok"); }
+            catch (System.Exception ex) { versuche.Add($"{klasse}/Handle {ex.GetBaseException().Message}"); }
+        }
+        return $"{string.Join("; ", versuche)}; Quellen jetzt {feld.GetAutomaticData().Length}";
     }
 
     static string FeldFormel(Database db, Transaction tr)
@@ -189,10 +198,41 @@ public sealed class Sonde
         var dict = new AecDb.DictionaryLayerKeyStyle(db);
         var ids = dict.Records.Cast<ObjectId>().Where(i => !i.IsErased).ToList();
         if (ids.Count == 0) return "kein vorhandener Stil";
-        var s = ids.Select(i => (AecDb.LayerKeyStyle)tr.GetObject(i, OpenMode.ForWrite)).First(x => !x.Name.StartsWith(P));
+        var s = ids.Select(i => (AecDb.LayerKeyStyle)tr.GetObject(i, OpenMode.ForWrite)).FirstOrDefault(x => !x.Name.StartsWith(P));
+        if (s is null) return "kein vorhandener (fremder) Layer-Schlüsselstil in der Zeichnung";
         var vorher = s.KeyDefinitions.Count;
         s.KeyDefinitions.Add(new AecDb.LayerKeyDefinition { Key = "AVTSONDE2", LayerName = P + "_Layer2", Color = Color.FromColorIndex(ColorMethod.ByAci, 5) });
         return $"„{s.Name}“: {vorher} → {s.KeyDefinitions.Count} Schlüssel";
+    }
+
+    static string LinDatei(Database db)
+    {
+        var datei = HostApplicationServices.Current.FindFile("acadiso.lin", db, FindFileHint.Default);
+        var name = File.ReadLines(datei, global::System.Text.Encoding.Latin1).First(z => z.StartsWith('*'))[1..].Split(',')[0].Trim();
+        db.LoadLineTypeFile(name, datei);
+        return $"„{name}“ aus {datei}";
+    }
+
+    /// <summary>Automatische Felder der Zeichnung mit Quelle (Klasse, Eigenschaft), aus GetAutomaticData per Reflexion.</summary>
+    internal static List<(string Satz, string Feld, string Klasse, string Quelle)?> AutomatischeFelder(Database db, Transaction tr)
+    {
+        var aus = new List<(string, string, string, string)?>();
+        foreach (ObjectId id in new Aecp.DictionaryPropertySetDefinitions(db).Records)
+        {
+            if (id.IsErased || tr.GetObject(id, OpenMode.ForRead) is not Aecp.PropertySetDefinition d) continue;
+            foreach (Aecp.PropertyDefinition f in d.Definitions)
+            {
+                if (!f.Automatic || f is Aecp.PropertyDefinitionFormula) continue;
+                foreach (var a in f.GetAutomaticData())
+                {
+                    var props = a.GetType().GetProperties().ToDictionary(p => p.Name, p => Convert.ToString(p.GetValue(a)) ?? "");
+                    var klasse = props.FirstOrDefault(p => p.Key.Contains("Class") || p.Key.Contains("Object") || p.Key.Contains("Type")).Value ?? "";
+                    var quelle = props.FirstOrDefault(p => p.Key.Contains("Property") || p.Key.Contains("Source") || p.Key.Contains("Name")).Value ?? "";
+                    aus.Add((d.Name, f.Name, klasse, quelle));
+                }
+            }
+        }
+        return aus;
     }
 
     static string System(Database db, Transaction tr)
@@ -223,24 +263,23 @@ public sealed class Sonde
         m.SubSetDatabaseDefaults(db);
         dict.AddNewRecord(P + "_MvB", m);
         tr.AddNewlyCreatedDBObject(m, true);
-        // Ansichtsblock je Darstellung: Aufbau der Sammlung über dynamic, Ergebnis wird gemeldet.
-        dynamic darst = m.DisplayRepresentationDefinitions;
+        // Darstellung „Allgemein“ o. ä. der Mehransichtsblock-Referenz suchen und den Block als Ansicht eintragen.
         string ansicht;
         try
         {
-            var n = (int)darst.Count;
-            ansicht = $"{n} Darstellungen vorbelegt";
-            if (n > 0)
-            {
-                dynamic erste = darst[0];
-                dynamic ansichten = erste.ViewBlocks;
-                dynamic vb = Activator.CreateInstance(typeof(AecDb.MultiViewBlockDefinition).Assembly.GetType("Autodesk.Aec.DatabaseServices.ViewBlock")!)!;
-                vb.BlockId = block.ObjectId;
-                ansichten.Add(vb);
-                ansicht += ", Ansichtsblock in Darstellung 1 gesetzt";
-            }
+            var mgr = new AecDb.DisplayRepresentationManager(db);
+            var klasse = RXObject.GetClass(typeof(AecDb.MultiViewBlockReference));
+            var reps = mgr.GetAllDisplayRepresentationsWorkForSpecifiedClass(klasse).Cast<ObjectId>().ToList();
+            var asm = typeof(AecDb.MultiViewBlockDefinition).Assembly;
+            var darst = new AecDb.MultiViewBlockDisplayRepresentationDefinition { DisplayRepresentationId = reps[0] };
+            dynamic sicht = Activator.CreateInstance(asm.GetType("Autodesk.Aec.DatabaseServices.MultiViewBlockViewDefinition")!)!;
+            sicht.BlockId = block.ObjectId;
+            darst.ViewDefinitions.Add(sicht);
+            m.DisplayRepresentationDefinitions.Add(darst);
+            ansicht = $"{reps.Count} Darstellungen verfügbar, „{((DBObject)tr.GetObject(reps[0], OpenMode.ForRead)).GetType().Name}“ mit Ansichtsblock belegt, "
+                + $"jetzt {m.DisplayRepresentationDefinitions.Count} Darstellung(en)";
         }
-        catch (System.Exception ex) { ansicht = $"Ansichtsblock nicht gesetzt ({ex.GetBaseException().Message})"; }
+        catch (System.Exception ex) { ansicht = $"Ansichtsblock nicht gesetzt ({ex.GetBaseException().GetType().Name}: {ex.GetBaseException().Message})"; }
         return ansicht;
     }
 
@@ -328,12 +367,30 @@ public sealed class Sonde
         finally { HostApplicationServices.WorkingDatabase = alt; }
     }
 
+    /// <summary>Standardfelder und alle Pflicht-Felder (benutzerdefiniert) mit Probewerten; Hyperlink-Basis bleibt leer.</summary>
+    static string DwgPropsSchreiben(Database db)
+    {
+        var b = new DatabaseSummaryInfoBuilder(db.SummaryInfo)
+        {
+            Title = $"{Standard.Kuerzel} – {Standard.Langname} · Sonde",
+            Subject = "TGA-Schema, AutoCAD MEP 2026 · Sonde",
+            Author = "S. Eichler · Eichler-GmbH",
+            Keywords = $"{Standard.Kuerzel}; 0.0.0-sonde; MEP 2026",
+            Comments = "Probewerte der AVT-Sonde" + Environment.NewLine + "zweite Zeile",
+            RevisionNumber = "0.0.0-sonde",
+            HyperlinkBase = "",
+        };
+        foreach (var f in Standard.PflichtFelder) b.CustomPropertyTable[f] = $"Probe {f}";
+        db.SummaryInfo = b.ToDatabaseSummaryInfo();
+        return $"6 Standardfelder + {Standard.PflichtFelder.Length} benutzerdefinierte";
+    }
+
     static string Stempel(Database db, Transaction tr)
     {
         var apps = (RegAppTable)tr.GetObject(db.RegAppTableId, OpenMode.ForWrite);
-        if (!apps.Has("EHS"))
+        if (!apps.Has(Standard.RegApp))
         {
-            var r = new RegAppTableRecord { Name = "EHS" };
+            var r = new RegAppTableRecord { Name = Standard.RegApp };
             apps.Add(r); tr.AddNewlyCreatedDBObject(r, true);
         }
         var nod = (DBDictionary)tr.GetObject(db.NamedObjectsDictionaryId, OpenMode.ForWrite);
@@ -342,11 +399,11 @@ public sealed class Sonde
             Data = new ResultBuffer(new TypedValue((int)DxfCode.Text, "Fassung"), new TypedValue((int)DxfCode.Text, "0.0.0-sonde"),
                 new TypedValue((int)DxfCode.Text, "Erzeugt"), new TypedValue((int)DxfCode.Text, "AVT 0.2.0 Sonde")),
         };
-        nod.SetAt(BefehleKanon.Stempel, x); tr.AddNewlyCreatedDBObject(x, true);
+        nod.SetAt(Standard.Stempel, x); tr.AddNewlyCreatedDBObject(x, true);
         var layer = (LayerTableRecord)tr.GetObject(((LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForRead))[P + "_Layer"], OpenMode.ForWrite);
-        layer.XData = new ResultBuffer(new TypedValue((int)DxfCode.ExtendedDataRegAppName, "EHS"),
+        layer.XData = new ResultBuffer(new TypedValue((int)DxfCode.ExtendedDataRegAppName, Standard.RegApp),
             new TypedValue((int)DxfCode.ExtendedDataAsciiString, "ID:L-0001"));
-        return "EHS_Zeichnung (Xrecord) + XData EHS an Layer";
+        return $"{Standard.Stempel} (Xrecord) + XData {Standard.RegApp} an Layer";
     }
 
     [CommandMethod("AVTSONDELESEN", CommandFlags.Modal | CommandFlags.NoHistory)]
@@ -370,12 +427,20 @@ public sealed class Sonde
                     aus.Add($"AVTSONDELESEN Feld | {f.Name} | {f.GetType().Name} | {f.DataType} | automatisch {f.Automatic}"
                         + (f is Aecp.PropertyDefinitionFormula fo ? $" | Formel {fo.GetFormulaString()}" : ""));
             }
+            foreach (var a in AutomatischeFelder(db, tr).Take(12))
+                aus.Add($"AVTSONDELESEN AutoFeld | {a!.Value.Satz} | {a.Value.Feld} | {a.Value.Klasse} | {a.Value.Quelle}");
             var themen = new AecDb.DictionaryDisplayThemeStyle(db);
             foreach (var n in new[] { P + "_Thema_neu", P + "_Thema_Kopie" }.Where(n => themen.Has(n, tr)))
             {
                 var t = (AecDb.DisplayThemeStyle)tr.GetObject(themen.GetAt(n), OpenMode.ForRead);
                 var regeln = t.DisplayThemeComponents.Cast<AecDb.DisplayThemeComponentBase>().Select(k => $"{k.Name}: {k.Rules?.DisplayString}");
                 aus.Add($"AVTSONDELESEN Thema | {n} | {string.Join("; ", regeln)}");
+            }
+            var mvb = new AecDb.DictionaryMultiViewBlockDefinition(db);
+            if (mvb.Has(P + "_MvB", tr))
+            {
+                var m = (AecDb.MultiViewBlockDefinition)tr.GetObject(mvb.GetAt(P + "_MvB"), OpenMode.ForRead);
+                aus.Add($"AVTSONDELESEN Mehransichtsblock | Darstellungen {m.DisplayRepresentationDefinitions.Count} | Blöcke {m.GetAllBlocksReferenced().Count}");
             }
             var tab = new Aecp.DictionaryScheduleTableStyle(db);
             if (tab.Has(P + "_Bauteiltabelle", tr))
@@ -384,6 +449,10 @@ public sealed class Sonde
                 aus.Add($"AVTSONDELESEN Bauteiltabelle | Spalten {string.Join(", ", s.Columns.Cast<Aecp.ScheduleTableStyleColumn>().Select(c => $"{c.Heading}={c.FullPropertyName}"))}");
             }
             aus.AddRange(BefehleKanon.FassungLesen(db, tr).Select(f => $"AVTSONDELESEN Fassung | {f}"));
+            aus.AddRange(BefehleKanon.DwgProps(db).Select(f => $"AVTSONDELESEN DWGPROPS | {f}"));
+            var vorhanden = BefehleKanon.DwgProps(db).Where(f => f.StartsWith('*')).Select(f => f[1..].Split(" = ")[0]).ToHashSet();
+            var fehlend = Standard.PflichtFelder.Where(f => !vorhanden.Contains(f)).ToList();
+            aus.Add($"AVTSONDELESEN DWGPROPS Pflicht | {(fehlend.Count == 0 ? "alle da" : "fehlt: " + string.Join(", ", fehlend))}");
             tr.Commit();
             aus.Add("AVTENDE ok");
         }

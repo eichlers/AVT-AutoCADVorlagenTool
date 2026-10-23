@@ -50,7 +50,7 @@ function Lauf([string] $ordner, [string] $dwg, [string[]] $befehle) {
 function Zeilen([string] $datei) { [IO.File]::ReadAllLines($datei, [Text.Encoding]::UTF8) }
 
 function PruefeEnde([string] $datei) {
-    if (-not (Test-Path $datei) -or -not ((Zeilen $datei) -contains 'EHSENDE ok')) { throw "$datei nicht mit EHSENDE ok beendet" }
+    if (-not (Test-Path $datei) -or -not ((Zeilen $datei) -contains 'AVTENDE ok')) { throw "$datei nicht mit AVTENDE ok beendet" }
 }
 
 # Ein Durchgang: Quelle -> Ergebnis im Ordner $ziel, mit vorher/plan/nachher.
@@ -73,15 +73,15 @@ function Durchgang([string] $ordner, [string] $quelle) {
 }
 
 function Namen([string] $datei, [string] $art) {
-    $z = Zeilen $datei | Where-Object { $_ -like "EHSNAMEN $art |*" } | Select-Object -First 1
+    $z = Zeilen $datei | Where-Object { $_ -like "AVTNAMEN $art |*" } | Select-Object -First 1
     if (-not $z) { return @() }
     @(($z -split '\|')[1] -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 }
 function NodSchluessel([string] $datei) {
-    @(Zeilen $datei | Where-Object { $_ -like 'EHSNOD *' } | ForEach-Object { ($_.Substring(7) -split '\|')[0].Trim() })
+    @(Zeilen $datei | Where-Object { $_ -like 'AVTNOD *' } | ForEach-Object { ($_.Substring(7) -split '\|')[0].Trim() })
 }
 function PlanZahl([string] $datei, [string] $grund) {
-    $z = Zeilen $datei | Where-Object { $_ -like "EHSPLANZAHL $grund |*" } | Select-Object -First 1
+    $z = Zeilen $datei | Where-Object { $_ -like "AVTPLANZAHL $grund |*" } | Select-Object -First 1
     if ($z) { [int](($z -split '\|')[1].Trim()) } else { 0 }
 }
 

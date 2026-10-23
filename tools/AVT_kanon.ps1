@@ -4,7 +4,9 @@ param(
     # Arbeitsordner: unter C:\Temp, ohne Leerzeichen.
     [Parameter(Mandatory)] [string] $Arbeit,
     # Pfad-Praefix fuer Objekte, deren ganzer Inhalt mit ausgegeben wird (Fehlersuche); leer = keiner.
-    [string] $Detail = ''
+    [string] $Detail = '',
+    # Vorher AUDIT (nur melden), Ergebnis in pruefsummen.txt.
+    [switch] $Audit
 )
 # Kanonische Inventur (AVT 0.2.0): je Zeichnung AVTKANON auf einer Kopie -> kanon.txt, dazu Liste der Gesamtpruefsummen.
 # Nie waehrend eines MEP-Slots starten.
@@ -21,11 +23,13 @@ foreach ($z in $Zeichnungen) {
     $n++
     $ordner = Join-Path $Arbeit "kanon_$n"
     $aus = Join-Path $ordner 'kanon.txt'
-    Lauf $ordner $z $dll @('AVTKANON', (P $aus), $detailText)
+    $vorweg = if ($Audit) { @('_AUDIT', '_N') } else { @() }
+    Lauf $ordner $z $dll ($vorweg + @('AVTKANON', (P $aus), $detailText))
     PruefeEnde $aus 'AVTENDE ok'
     $gesamt = (Zeilen $aus | Where-Object { $_ -like 'AVTKANON Gesamt |*' }) -replace '^AVTKANON Gesamt \| ', ''
     $objekte = (Zeilen $aus | Where-Object { $_ -like 'AVTKANON Objekte |*' }) -replace '^AVTKANON Objekte \| ', ''
-    $ergebnis += "$gesamt | $objekte Objekte | $z"
+    $auditText = if ($Audit) { ' | AUDIT ' + ((Get-Content (Join-Path $ordner 'konsole.txt') | Where-Object { $_ -match 'Fehler gefunden' }) -join ' ') } else { '' }
+    $ergebnis += "$gesamt | $objekte Objekte$auditText | $z"
 }
 $ergebnis | Out-File -Encoding utf8 (Join-Path $Arbeit 'pruefsummen.txt')
 $ergebnis

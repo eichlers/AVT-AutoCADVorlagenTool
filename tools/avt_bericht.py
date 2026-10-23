@@ -2,7 +2,7 @@
 
 Aufruf: python -I -X utf8 avt_bericht.py <Arbeitsordner> [--referenz <nachher.txt>]
 Liest vorher.txt, plan.txt, nachher.txt, nachpruefung.txt, lauf2/konsole.txt; nimmt zweiter/ als Endstand, wenn vorhanden.
-Schreibt <Arbeitsordner>/Bericht_AVT.md. Mit --referenz: Vergleich der Kennzahlen (EHSZAHL, EHSKLASSE, EHSNAMEN, EHSNOD);
+Schreibt <Arbeitsordner>/Bericht_AVT.md. Mit --referenz: Vergleich der Kennzahlen (AVTZAHL, AVTKLASSE, AVTNAMEN, AVTNOD);
 Rückgabecode 1 bei Abweichung. RegApp- und Wörterbuchnamen stehen nur im Bericht unter C:\\Temp, nie im Repo.
 """
 import argparse
@@ -10,11 +10,12 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-VERGLEICH = ("EHSZAHL ", "EHSKLASSE ", "EHSNAMEN ", "EHSNOD ")
+VERGLEICH = ("AVTZAHL ", "AVTKLASSE ", "AVTNAMEN ", "AVTNOD ")
 
 
 def zeilen(datei: Path) -> list[str]:
-    return datei.read_text(encoding="utf-8").splitlines()
+    """Zeilen einer Ausgabe; ältere Läufe (ASG tools/ehs, AVT 0.1.0) schrieben „EHS…“ statt „AVT…“."""
+    return [("AVT" + z[3:]) if z.startswith("EHS") else z for z in datei.read_text(encoding="utf-8").splitlines()]
 
 
 def felder(zeile: str, vorsilbe: str) -> list[str]:
@@ -40,7 +41,7 @@ def audit(ordner: Path) -> str:
 
 
 def zahl(werte: dict[str, str], name: str) -> str:
-    return werte.get(f"EHSZAHL {name}", "–").split(" | ")[0]
+    return werte.get(f"AVTZAHL {name}", "–").split(" | ")[0]
 
 
 def namen(wert: str) -> set[str]:
@@ -54,7 +55,7 @@ def vergleiche(ist: dict[str, str], soll: dict[str, str]) -> tuple[list[str], li
     for k in sorted(soll):
         if k not in ist:
             diffs.append(f"- `{k}`: fehlt in AVT")
-        elif k.startswith("EHSNAMEN "):
+        elif k.startswith("AVTNAMEN "):
             a, r = namen(ist[k]), namen(soll[k])
             if a != r:
                 diffs.append(f"- `{k}`: nur AVT {sorted(a - r)} · nur Referenz {sorted(r - a)}")
@@ -66,21 +67,21 @@ def vergleiche(ist: dict[str, str], soll: dict[str, str]) -> tuple[list[str], li
 def bericht(ordner: Path, referenz: Path | None) -> int:
     ende = ordner / "zweiter" if (ordner / "zweiter" / "nachher.txt").exists() else ordner
     for d in (ordner / "vorher.txt", ordner / "plan.txt", ende / "nachher.txt"):
-        if "EHSENDE ok" not in zeilen(d):
-            sys.exit(f"{d}: Lauf nicht mit EHSENDE ok beendet – kein Bericht")
+        if "AVTENDE ok" not in zeilen(d):
+            sys.exit(f"{d}: Lauf nicht mit AVTENDE ok beendet – kein Bericht")
     vor, nach = kennzahlen(ordner / "vorher.txt"), kennzahlen(ende / "nachher.txt")
     md = [f"# Bericht AVT Bereinigen", "",
-          f"Stand {datetime.now():%d.%m.%Y %H:%M} · AVT 0.1.0 · `tools/AVT_bereinigen.ps1` (headless)", "",
+          f"Stand {datetime.now():%d.%m.%Y %H:%M} · `tools/AVT_bereinigen.ps1` (headless)", "",
           f"- Arbeitsordner: `{ordner}`", f"- Endstand: `{ende}`" + (" (zweiter Durchgang)" if ende != ordner else ""),
           f"- AUDIT am Ergebnis: {audit(ende)}", "", "## Kennzahlen", "", "| Kategorie | vorher | nachher |", "|---|---:|---:|"]
     for name in ("Objekte gesamt", "Eigenschaftssatzdefinitionen", "Anzeigethemen", "Symbolstile", "Symbolstile mit Beschreibung",
                  "Systemdefinitionen", "Blöcke", "Layer", "Linientypen", "Textstile", "Bemassungsstile", "RegApps", "Layouts"):
         md.append(f"| {name} | {zahl(vor, name)} | {zahl(nach, name)} |")
     md += ["", "## Plan (Durchgang 1)", ""]
-    md += [f"- {z[len('EHSPLANZAHL '):]}" for z in zeilen(ordner / "plan.txt") if z.startswith("EHSPLANZAHL ")]
-    md += [f"- {z}" for z in zeilen(ordner / "plan.txt") if z.startswith(("EHSERGEBNIS", "EHSRESTREGAPP", "EHSWARNUNG", "EHSFEHLER"))]
-    schutz = [z for z in zeilen(ordner / "plan.txt") if z.startswith("EHSSCHUTZ ")]
-    md += ["", f"## Geschützt (bleibt wegen Verweis): {len(schutz)}", ""] + [f"- {z[len('EHSSCHUTZ '):]}" for z in schutz]
+    md += [f"- {z[len('AVTPLANZAHL '):]}" for z in zeilen(ordner / "plan.txt") if z.startswith("AVTPLANZAHL ")]
+    md += [f"- {z}" for z in zeilen(ordner / "plan.txt") if z.startswith(("AVTERGEBNIS", "AVTRESTREGAPP", "AVTWARNUNG", "AVTFEHLER"))]
+    schutz = [z for z in zeilen(ordner / "plan.txt") if z.startswith("AVTSCHUTZ ")]
+    md += ["", f"## Geschützt (bleibt wegen Verweis): {len(schutz)}", ""] + [f"- {z[len('AVTSCHUTZ '):]}" for z in schutz]
     md += ["", "## Nachprüfung (Object-Enabler, Restspuren)", ""]
     for o in [ordner] + ([ende] if ende != ordner else []):
         datei = o / "nachpruefung.txt"
@@ -91,7 +92,7 @@ def bericht(ordner: Path, referenz: Path | None) -> int:
     if referenz:
         diffs, zusatz = vergleiche(nach, kennzahlen(referenz))
         md += ["", f"## Vergleich mit Referenz `{referenz}`", ""]
-        md += diffs if diffs else ["Keine Abweichung in EHSZAHL, EHSKLASSE, EHSNAMEN, EHSNOD."]
+        md += diffs if diffs else ["Keine Abweichung in AVTZAHL, AVTKLASSE, AVTNAMEN, AVTNOD."]
         md += zusatz
         rc = 1 if diffs else 0
     (ordner / "Bericht_AVT.md").write_text("\n".join(md) + "\n", encoding="utf-8")

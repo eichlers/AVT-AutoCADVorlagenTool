@@ -61,9 +61,9 @@ public sealed class Befehle
             Zahlen(doc.Database, tr, b, aus);
             Schreibe(Plan.Erstelle(b, doc.Database, fremd, themenWeg), b, aus);
             tr.Commit();
-            aus.Add("EHSENDE ok");
+            aus.Add("AVTENDE ok");
         }
-        catch (System.Exception ex) { aus.Add($"EHSENDE FEHLER {ex.GetBaseException().GetType().Name}: {ex.GetBaseException().Message}"); }
+        catch (System.Exception ex) { aus.Add($"AVTENDE FEHLER {ex.GetBaseException().GetType().Name}: {ex.GetBaseException().Message}"); }
         Ablegen(doc.Editor, datei, aus, "Inventur");
     }
 
@@ -93,15 +93,15 @@ public sealed class Befehle
                     throw new InvalidOperationException($"Verweisgraph unvollständig (unlesbar {b.Unlesbar}, ohne Zeiger {b.OhneZeiger.Count}), nichts gespeichert");
                 // Fehler beim Entfernen: Transaktion verwerfen, nicht speichern.
                 if (Ausfuehren(db, tr, b, plan, aus) > 0)
-                    throw new InvalidOperationException("Fehler beim Entfernen (EHSFEHLER), nichts gespeichert");
+                    throw new InvalidOperationException("Fehler beim Entfernen (AVTFEHLER), nichts gespeichert");
                 tr.Commit();
                 RegAppsBereinigen(db, plan, aus);
             }
             db.SaveAs(ziel, DwgVersion.Current);
-            aus.Add($"EHSGESPEICHERT {ziel}");
-            aus.Add("EHSENDE ok");
+            aus.Add($"AVTGESPEICHERT {ziel}");
+            aus.Add("AVTENDE ok");
         }
-        catch (System.Exception ex) { aus.Add($"EHSENDE FEHLER {ex.GetBaseException().GetType().Name}: {ex.GetBaseException().Message}"); }
+        catch (System.Exception ex) { aus.Add($"AVTENDE FEHLER {ex.GetBaseException().GetType().Name}: {ex.GetBaseException().Message}"); }
         Ablegen(doc.Editor, datei, aus, "Bereinigen");
     }
 
@@ -132,27 +132,27 @@ public sealed class Befehle
         using var tr = db.TransactionManager.StartTransaction();
         foreach (var id in frei) tr.GetObject(id, OpenMode.ForWrite).Erase();
         tr.Commit();
-        foreach (var id in gewollt.Where(i => !frei.Contains(i))) aus.Add($"EHSRESTREGAPP {id.Handle} | Purge gibt sie nicht frei");
-        aus.Add($"EHSERGEBNIS RegApps gelöscht {frei.Count} von {gewollt.Count}");
+        foreach (var id in gewollt.Where(i => !frei.Contains(i))) aus.Add($"AVTRESTREGAPP {id.Handle} | Purge gibt sie nicht frei");
+        aus.Add($"AVTERGEBNIS RegApps gelöscht {frei.Count} von {gewollt.Count}");
     }
 
     /// <summary>Zahlen für den Vorher/Nachher-Vergleich.</summary>
     static void Zahlen(Database db, Transaction tr, Bestand b, List<string> aus)
     {
-        aus.Add($"EHSZAHL Objekte gesamt | {b.Alle.Count}");
-        aus.Add($"EHSZAHL Objekte unlesbar | {b.Unlesbar}");
-        foreach (var g in b.Alle.Values.GroupBy(o => o.Klasse).OrderBy(g => g.Key)) aus.Add($"EHSKLASSE {g.Key} | {g.Count()}");
+        aus.Add($"AVTZAHL Objekte gesamt | {b.Alle.Count}");
+        aus.Add($"AVTZAHL Objekte unlesbar | {b.Unlesbar}");
+        foreach (var g in b.Alle.Values.GroupBy(o => o.Klasse).OrderBy(g => g.Key)) aus.Add($"AVTKLASSE {g.Key} | {g.Count()}");
         // Inhalt je Raum (Modell und Layouts) nach Klasse.
         var layouts = (DBDictionary)tr.GetObject(db.LayoutDictionaryId, OpenMode.ForRead);
         foreach (var e in layouts)
         {
             var l = (Layout)tr.GetObject(e.Value, OpenMode.ForRead);
             var inhalt = b.Alle.Values.Where(o => o.Besitzer == l.BlockTableRecordId).ToList();
-            aus.Add($"EHSRAUM {l.LayoutName} | {inhalt.Count} | {string.Join(", ", inhalt.GroupBy(o => o.Klasse).Select(g => $"{g.Key}×{g.Count()}"))}");
+            aus.Add($"AVTRAUM {l.LayoutName} | {inhalt.Count} | {string.Join(", ", inhalt.GroupBy(o => o.Klasse).Select(g => $"{g.Key}×{g.Count()}"))}");
             foreach (var o in inhalt.Where(o => o.Klasse == "AcDbBlockReference" && !l.ModelType))
             {
                 var r = (BlockReference)tr.GetObject(o.Id, OpenMode.ForRead);
-                aus.Add($"EHSRAUMBLOCK {l.LayoutName} | {r.Name} | Layer {r.Layer}");
+                aus.Add($"AVTRAUMBLOCK {l.LayoutName} | {r.Name} | Layer {r.Layer}");
             }
         }
         var nod = (DBDictionary)tr.GetObject(db.NamedObjectsDictionaryId, OpenMode.ForRead);
@@ -160,36 +160,36 @@ public sealed class Befehle
         {
             var o = tr.GetObject(e.Value, OpenMode.ForRead);
             var anzahl = o is DBDictionary d ? d.Count.ToString() : "-";
-            aus.Add($"EHSNOD {e.Key} | {Bestand.Klasse(o)} | {anzahl}");
+            aus.Add($"AVTNOD {e.Key} | {Bestand.Klasse(o)} | {anzahl}");
         }
-        aus.Add($"EHSZAHL Symbolstile | {Zaehle(new DictionarySchematicSymbolStyle(db).Records)}");
+        aus.Add($"AVTZAHL Symbolstile | {Zaehle(new DictionarySchematicSymbolStyle(db).Records)}");
         var stile = new DictionarySchematicSymbolStyle(db).Records.Cast<ObjectId>().Where(i => !i.IsErased)
             .Select(i => tr.GetObject(i, OpenMode.ForRead)).OfType<SchematicSymbolStyle>().ToList();
-        aus.Add($"EHSZAHL Symbolstile mit Beschreibung | {stile.Count(s => !string.IsNullOrWhiteSpace(s.Description))}");
-        aus.Add($"EHSZAHL Symbolstile mit Ansichtsblock | {stile.Count(s => s.MultiViewPartViewDefinitions.Cast<MultiViewPartViewDefinition>().Any(v => !v.BlockId.IsNull && !v.BlockId.IsErased))}");
-        aus.Add($"EHSZAHL Systemdefinitionen | {Zaehle(new DictionarySchematicSystemDefinition(db).Records)}");
-        aus.Add($"EHSZAHL Eigenschaftssatzdefinitionen | {Zaehle(new Aecp.DictionaryPropertySetDefinitions(db).Records)}");
-        aus.Add($"EHSZAHL Anzeigethemen | {(nod.Contains("AEC_DISPLAYTHEME_STYLES") ? ((DBDictionary)tr.GetObject(nod.GetAt("AEC_DISPLAYTHEME_STYLES"), OpenMode.ForRead)).Count : 0)}");
+        aus.Add($"AVTZAHL Symbolstile mit Beschreibung | {stile.Count(s => !string.IsNullOrWhiteSpace(s.Description))}");
+        aus.Add($"AVTZAHL Symbolstile mit Ansichtsblock | {stile.Count(s => s.MultiViewPartViewDefinitions.Cast<MultiViewPartViewDefinition>().Any(v => !v.BlockId.IsNull && !v.BlockId.IsErased))}");
+        aus.Add($"AVTZAHL Systemdefinitionen | {Zaehle(new DictionarySchematicSystemDefinition(db).Records)}");
+        aus.Add($"AVTZAHL Eigenschaftssatzdefinitionen | {Zaehle(new Aecp.DictionaryPropertySetDefinitions(db).Records)}");
+        aus.Add($"AVTZAHL Anzeigethemen | {(nod.Contains("AEC_DISPLAYTHEME_STYLES") ? ((DBDictionary)tr.GetObject(nod.GetAt("AEC_DISPLAYTHEME_STYLES"), OpenMode.ForRead)).Count : 0)}");
         foreach (var (name, id) in new[] { ("Layer", db.LayerTableId), ("Linientypen", db.LinetypeTableId), ("Textstile", db.TextStyleTableId),
                      ("Bemassungsstile", db.DimStyleTableId), ("RegApps", db.RegAppTableId), ("Blöcke", db.BlockTableId) })
         {
             var t = (SymbolTable)tr.GetObject(id, OpenMode.ForRead);
             var namen = t.Cast<ObjectId>().Select(i => ((SymbolTableRecord)tr.GetObject(i, OpenMode.ForRead)).Name).ToList();
-            aus.Add($"EHSZAHL {name} | {namen.Count}");
-            // Anonyme Blöcke (*U…) ohne Namen; die Zahl der gelisteten steht am Ende (EHSZAHL zählt alle).
+            aus.Add($"AVTZAHL {name} | {namen.Count}");
+            // Anonyme Blöcke (*U…) ohne Namen; die Zahl der gelisteten steht am Ende (AVTZAHL zählt alle).
             var sichtbar = namen.Where(n => !n.StartsWith('*')).OrderBy(n => n).ToList();
-            aus.Add($"EHSNAMEN {name} | {string.Join("; ", sichtbar)} | gelistet {sichtbar.Count}");
+            aus.Add($"AVTNAMEN {name} | {string.Join("; ", sichtbar)} | gelistet {sichtbar.Count}");
         }
-        aus.Add($"EHSZAHL Layouts | {layouts.Count}");
+        aus.Add($"AVTZAHL Layouts | {layouts.Count}");
         // Wer benutzt welche RegApp (XData oder Zeiger)? Zur Prüfung, warum eine RegApp das Speichern übersteht.
         foreach (var r in b.Alle.Values.Where(o => o.Klasse == "AcDbRegAppTableRecord" && !o.Name.StartsWith("AC", StringComparison.OrdinalIgnoreCase)
                      && !o.Name.StartsWith("AEC", StringComparison.OrdinalIgnoreCase)))
         {
             var xdata = b.Alle.Values.Where(o => o.XDataApps.Contains(r.Name, StringComparer.OrdinalIgnoreCase)).ToList();
             var zeiger = b.Verwiesen.GetValueOrDefault(r.Id) ?? [];
-            aus.Add($"EHSREGAPP {r.Handle} | XData {xdata.Count} | Zeiger {zeiger.Count} | z. B. {(xdata.Count > 0 ? b.Text(xdata[0].Id) : zeiger.Count > 0 ? b.Text(zeiger[0]) : "-")}");
+            aus.Add($"AVTREGAPP {r.Handle} | XData {xdata.Count} | Zeiger {zeiger.Count} | z. B. {(xdata.Count > 0 ? b.Text(xdata[0].Id) : zeiger.Count > 0 ? b.Text(zeiger[0]) : "-")}");
         }
-        foreach (var o in b.Alle.Values.Where(o => o.Klasse == Plan.KlasseSatzDef)) aus.Add($"EHSSATZDEF {o.Name} | {o.Handle}");
+        foreach (var o in b.Alle.Values.Where(o => o.Klasse == Plan.KlasseSatzDef)) aus.Add($"AVTSATZDEF {o.Name} | {o.Handle}");
         var themen = new List<DBDictionaryEntry>();
         if (nod.Contains("AEC_DISPLAYTHEME_STYLES"))
         {
@@ -198,7 +198,7 @@ public sealed class Befehle
         foreach (var e in themen)
         {
             var zeiger = b.Alle.TryGetValue(e.Value, out var t) ? t.Zeiger.Select(b.Text) : [];
-            aus.Add($"EHSTHEMA {e.Key} | zeigt auf: {string.Join("; ", zeiger)}");
+            aus.Add($"AVTTHEMA {e.Key} | zeigt auf: {string.Join("; ", zeiger)}");
         }
     }
 
@@ -208,22 +208,22 @@ public sealed class Befehle
     {
         foreach (var g in plan.Wurzeln.GroupBy(w => w.Value).OrderBy(g => g.Key))
         {
-            aus.Add($"EHSPLANZAHL {g.Key} | {g.Count()}");
+            aus.Add($"AVTPLANZAHL {g.Key} | {g.Count()}");
             if (g.Key is "Modellbereich" or "Eigenschaftssatz" or "RegApp ohne Benutzer")
             {
-                foreach (var k in g.GroupBy(w => b.Alle[w.Key].Klasse)) aus.Add($"EHSPLAN {g.Key} | {k.Key} | {k.Count()}");
+                foreach (var k in g.GroupBy(w => b.Alle[w.Key].Klasse)) aus.Add($"AVTPLAN {g.Key} | {k.Key} | {k.Count()}");
                 continue;
             }
-            foreach (var w in g.OrderBy(w => b.Alle[w.Key].Name)) aus.Add($"EHSPLAN {g.Key} | {b.Text(w.Key)}");
+            foreach (var w in g.OrderBy(w => b.Alle[w.Key].Name)) aus.Add($"AVTPLAN {g.Key} | {b.Text(w.Key)}");
         }
-        foreach (var (ziel, von) in plan.Geschuetzt) aus.Add($"EHSSCHUTZ {b.Text(ziel)} | bleibt wegen {b.Text(von)}");
+        foreach (var (ziel, von) in plan.Geschuetzt) aus.Add($"AVTSCHUTZ {b.Text(ziel)} | bleibt wegen {b.Text(von)}");
         foreach (var g in plan.OffeneVerweise.GroupBy(v => (b.Alle[v.Von].Klasse, Ziel: b.Alle[v.Ziel].Klasse)))
-            aus.Add($"EHSVERWEIS {g.Key.Klasse} → {g.Key.Ziel} | {g.Count()} | z. B. {b.Text(g.First().Von)} → {b.Text(g.First().Ziel)}");
-        foreach (var t in plan.NichtGefundeneThemen) aus.Add($"EHSWARNUNG Thema nicht gefunden: {t}");
-        foreach (var id in plan.NurImModell) aus.Add($"EHSNURMODELL {b.Text(id)} | bleibt");
-        foreach (var id in plan.SchonUnbenutzt) aus.Add($"EHSUNBENUTZT {b.Text(id)} | bleibt");
-        aus.Add($"EHSLUECKE unlesbar {b.Unlesbar} | ohne Zeiger {b.OhneZeiger.Count} | davon bleibend {b.OhneZeiger.Count(i => !plan.Weg(i))}");
-        foreach (var id in b.OhneZeiger.Where(i => !plan.Weg(i))) aus.Add($"EHSOHNEZEIGER {b.Text(id)}");
+            aus.Add($"AVTVERWEIS {g.Key.Klasse} → {g.Key.Ziel} | {g.Count()} | z. B. {b.Text(g.First().Von)} → {b.Text(g.First().Ziel)}");
+        foreach (var t in plan.NichtGefundeneThemen) aus.Add($"AVTWARNUNG Thema nicht gefunden: {t}");
+        foreach (var id in plan.NurImModell) aus.Add($"AVTNURMODELL {b.Text(id)} | bleibt");
+        foreach (var id in plan.SchonUnbenutzt) aus.Add($"AVTUNBENUTZT {b.Text(id)} | bleibt");
+        aus.Add($"AVTLUECKE unlesbar {b.Unlesbar} | ohne Zeiger {b.OhneZeiger.Count} | davon bleibend {b.OhneZeiger.Count(i => !plan.Weg(i))}");
+        foreach (var id in b.OhneZeiger.Where(i => !plan.Weg(i))) aus.Add($"AVTOHNEZEIGER {b.Text(id)}");
     }
 
     /// <summary>
@@ -244,7 +244,7 @@ public sealed class Befehle
                 Aecp.PropertyDataServices.RemovePropertySet(obj, satz.PropertySetDefinition);
                 saetze++;
             }
-            catch (System.Exception ex) { fehler++; aus.Add($"EHSFEHLER Satz {b.Text(id)} an {b.Text(traeger)}: {ex.GetBaseException().Message}"); }
+            catch (System.Exception ex) { fehler++; aus.Add($"AVTFEHLER Satz {b.Text(id)} an {b.Text(traeger)}: {ex.GetBaseException().Message}"); }
         }
         // RegApps getrennt nach dem Commit (RegAppsBereinigen): in derselben Transaktion gelöscht, holte AutoCAD sie beim
         // Speichern zurück (Lauf 23.10.2026, gleiche Handles, keine Benutzer).
@@ -267,10 +267,10 @@ public sealed class Befehle
                     o.Erase();
                     geloescht++;
                 }
-                catch (System.Exception ex) { fehler++; aus.Add($"EHSFEHLER {grund} {b.Text(id)}: {ex.GetBaseException().Message}"); }
+                catch (System.Exception ex) { fehler++; aus.Add($"AVTFEHLER {grund} {b.Text(id)}: {ex.GetBaseException().Message}"); }
             }
         }
-        aus.Add($"EHSERGEBNIS Sätze gelöst {saetze} | gelöscht {geloescht} | Fehler {fehler}");
+        aus.Add($"AVTERGEBNIS Sätze gelöst {saetze} | gelöscht {geloescht} | Fehler {fehler}");
         return fehler;
     }
 }
