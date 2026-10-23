@@ -41,6 +41,9 @@ Nicht AVT: Symbolstile erzeugen/ändern (ASG), Stempel (ATT), Tabellen/Listen/Da
   Einspielen nur nach AMK-„frei“-Runde. Umstellen alter Zeichnungen entfällt (Nutzer 23.10.: neues System).
   **Eingespielt 23.10.2026 14:58** nach AMK-Freigabe: %APPDATA%\Autodesk\ApplicationPlugins\AVT.bundle, AppVersion 0.3.0,
   AVT.Mep.dll + AVT.Kern.dll 0.3.0.0 (Code-Stand c24a14c). MEP-Prüfpunkte im gemeinsamen Testplan (AMK).
+- **0.3.1 Farbschema** (b7c2c82): Palette und Zahnrad im gemeinsamen Farbschema (Werte 1:1 ATT), folgen COLORTHEME sofort;
+  Vorschau ohne AutoCAD (`tools/vorschau`). **Eingespielt 23.10.2026** nach AMK-Freigabe: AppVersion 0.3.1,
+  AVT.Mep.dll 0.3.1.0, AVT.Kern.dll 0.4.0.0 (Code-Stand b7c2c82).
 - **0.4.0 Teil 1 Erzeugen (Entwurf, 23.10.2026):** Stammdaten NUR aus `Schema\Stammdaten` (AMK, „eine Sache, ein Ort“; 388cbea), `src/AVT.Kern/Erzeugen`
   (Stammdaten, Erzeuger, Stammpruefung), AVTERZEUGEN → AVTABSCHLIESSEN (Prüfsumme am als Dokument geöffneten Stand) →
   AVTSTAMMPRUEFEN, `tools/AVT_erzeugen.ps1 [-Zweimal]`. Entwurf 1.0.0-e1 in `C:\Temp\AVT\Erzeugen`, ganz aus dem Schema: 2 Bauten gleich (9db73ae0),
