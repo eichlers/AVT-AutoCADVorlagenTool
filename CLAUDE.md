@@ -35,6 +35,12 @@ Nicht AVT: Symbolstile erzeugen/ändern (ASG), Stempel (ATT), Tabellen/Listen/Da
   AVTSONDELESEN), `tools/AVT_kanon.ps1`, `AVT_pruefen.ps1` + `avt_pruefen.py`, `AVT_sonde.ps1`, `avt_gemeinsam.ps1`.
   Kürzel „EHS“ nur in `Standard.cs`; Berichtszeilen „AVT…“. Inventur immer VOR AUDIT (AUDIT ändert Schraffuren).
   Nachweis: 7 × EHS 0.2 → Prüfsumme f13fa95c. Handbuch `docs/AVT_Handbuch.md` + PDF (Modulfarbe Anthrazit #4A5662).
+- **0.3.0 Plugin** (23.10.2026): `src/AVT.Kern` (gemeinsame Logik, Fremd/ a-b-c), `src/AVT.Mep` (Palette, Knopf #4A5662,
+  Hinweis, Zahnrad), `src/AVT.Werkzeug` (headless), `tests/AVT.Kern.Tests` (42), `bundle/`, `tools/AVT_bundle.ps1`.
+  Bereinigen der offenen Zeichnung: Vorschau → Bestätigung → Sicherungskopie → Runden mit Purge → Nachprüfung; speichert nie.
+  Einspielen nur nach AMK-„frei“-Runde. Umstellen alter Zeichnungen entfällt (Nutzer 23.10.: neues System).
+- **Vorgemerkt:** Prüfen gegen Unterklassen.csv/Bauarten.csv (DIN EN IEC 81346-2:2020-10); Kunden-Bezug (Roche) im Kern = Fehler,
+  Begriffe aus den Stammdaten.
 - **Versionsplan** (AMK ok): 0.3.0 Plugin/Palette/Knopf + Bereinigen der offenen Zeichnung (Vorschau, Bestätigung,
   Sicherungskopie, Einteilung a/b/c), 0.4.0 Erzeugen, 0.6.0 Release (DWGPROPS schreiben).
 - **Bauplan „grüne Wiese“** (Nutzer 23.10., `Schema\Bauplan_EHS.md`): AVT erzeugt die Vorlage aus Stammdaten – erst nach Auftrag AMK bauen.

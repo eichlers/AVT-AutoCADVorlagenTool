@@ -38,10 +38,10 @@ AutoCAD MEP 2026. Installiert wird bei geschlossenem MEP (`tools\AVT_bundle.ps1 
 - **Palette:** öffnet mit dem Knopf oder mit `AVTPALETTE` (kurz `AVT`) – immer sichtbar und ausgeklappt, auch wenn sie
   angedockt auf „Automatisch ausblenden“ steht. Beim Start von AutoCAD bleibt sie zu, auch wenn sie beim Beenden offen
   war. Unten (bei der Befehlszeile) dockt sie nicht an. Die Palette trägt dasselbe Symbol wie der Knopf.
-- **Hinweis beim Öffnen:** AVT prüft jede geöffnete Zeichnung leise im Leerlauf (gemessen: gut 1 s bei 40 000 Objekten)
-  und meldet einmal in der Befehlszeile, wenn Inhalte nicht zur Fassung gehören, z. B.
-  „AVT: 206 Fremdinhalte, 44 benutzt (nicht in der Fassung) – Palette AVT → „Bereinigen …“ zeigt sie.“ Kein Dialog,
-  nichts wird geändert. Abschaltbar im Zahnrad.
+- **Hinweis beim Öffnen:** AVT prüft jede geöffnete Zeichnung leise im Leerlauf – nur die Namen gegen die Fassung
+  (gemessen: rund 20 ms bei 40 000 Objekten) – und meldet einmal in der Befehlszeile, z. B.
+  „AVT: 216 Einträge nicht in der Fassung (EHS 0.2) – Palette AVT → „Bereinigen …“ zeigt, was davon fremd ist.“
+  Kein Dialog, nichts wird geändert, nicht während eines Befehls. Abschaltbar im Zahnrad.
 - **Protokoll und Einstellungen:** `%APPDATA%\AVT\AVT_sitzung.log`, `%APPDATA%\AVT\AVT_einstellungen.json`.
 
 **Werkzeuge ohne Oberfläche** (Bau und Prüfung der Vorlage): Ablaufskripte im Ordner `tools` des AVT-Projekts. Sie
@@ -109,16 +109,22 @@ wie „0“ oder „Standard“. Zusatzprogramme erkennt AVT an ihren Objektklas
 
    | Gruppe | Bedeutung | Vorgabe |
    |---|---|---|
-   | a) fremd und unbenutzt | Blöcke, Stile, Satzdefinitionen, Layer, Text-/Linientypen, RegApps, Wörterbücher, Dubletten | angehakt – wird entfernt |
+   | a) fremd und unbenutzt | Blöcke, Stile, Satzdefinitionen, Layer, Text-/Linientypen, RegApps, Wörterbücher, Dubletten | angehakt nur mit Fremdspur (alter Stempelblock, fremde Klasse, Dublette, fremde Satzdefinition, fremdes Wörterbuch); unbenutztes ohne Fremdspur (z. B. ein leerer eigener Layer) ohne Haken – kein pauschales PURGE |
    | b) fremd und benutzt | z. B. eingefügte alte Stempelblöcke, `TAGBauteil`-Sätze an Objekten | nicht angehakt – angehakt = als Ausnahme merken |
    | c) Projektinhalt | eigene Blöcke, Plankopf, Legenden, Tabellenstile ohne Fremdspuren | nur Information |
 
    Was nur von anderem Unbenutztem benutzt wird (z. B. ein Block in einem unbenutzten fremden Block), zählt als unbenutzt.
-2. **Ausgewählte bereinigen …**: AVT verlangt eine gespeicherte Zeichnung und fragt einmal nach.
+   „Benutzt“ erkennt AVT über alle Verweise der Zeichnung, dazu über Handles in XData (z. B. Pfeilblöcke in Bemaßungen),
+   über Kopfvariablen (aktueller Layer, Textstil, Bemaßungsstil …), über Satznamen in Texten und Beschriftungen
+   („Satz:Feld“) und über Daten an Bauteilen. Lässt sich ein Objekt der Zeichnung nicht lesen, entfernt AVT nichts.
+2. **Ausgewählte bereinigen …**: AVT verlangt eine gespeicherte, nicht schreibgeschützte Zeichnung, deren Datei seit
+   dem Öffnen nicht von außen geändert wurde (z. B. durch Synchronisierung), und fragt einmal nach.
 3. **Sicherungskopie** neben der Zeichnung: `<Name>_vor-Bereinigen_<JJJJMMTT_hhmm>.dwg`, Prüfsumme mit dem Original
    verglichen. Gelingt sie nicht, wird nichts geändert.
-4. **Bereinigen**: AVT liest die Zeichnung neu und entfernt nur, was jetzt noch fremd und unbenutzt ist.
-   Wörterbucheinträge werden ausgetragen, RegApps nur, soweit AutoCAD sie freigibt. Ein Fehler → nichts wird entfernt.
+4. **Bereinigen**: AVT liest die Zeichnung neu und entfernt nur, was jetzt noch fremd und unbenutzt ist und zum
+   selben Objekt wie in der Vorschau gehört. Bleibt etwas, das ein Gewähltes benutzt, ungewählt, bleibt auch das
+   Gewählte. Gelöscht wird in Runden; AutoCADs eigene Prüfung (Purge) muss jedes Teil freigeben. Wörterbucheinträge
+   werden ausgetragen, RegApps nur, soweit AutoCAD sie freigibt. Ein Fehler → nichts wird entfernt.
 5. **Nachprüfung** und **Bericht** in der Palette. **Speichern macht der Nutzer** – AVT speichert nie.
 
 Ausnahmen (b behalten) stehen in der Zeichnung im Wörterbuch `AVT_Ausnahmen`; der Hinweis meldet sie dort nicht mehr.
@@ -127,7 +133,11 @@ Ausnahmen (b behalten) stehen in der Zeichnung im Wörterbuch `AVT_Ausnahmen`; d
 
 ```
 powershell -File tools\AVT_fremd.ps1 -Quelle <dwg> -Arbeit C:\Temp\AVT\<Ordner> [-Bereinigen [-AusnahmenMerken]]
+powershell -File tools\AVT_fremdprobe.ps1 -Quelle <dwg> -Arbeit C:\Temp\AVT\<Ordner>
 ```
+
+Die Probe legt Fälle an, die nie als unbenutzt gelten dürfen (leerer aktueller Layer, Pfeilblock nur in einer
+Bemaßung, Satzdefinition nur per Name in einem Text) – Ergebnis: nur der alte Stempelblock wird entfernt, AUDIT 0.
 
 ---
 
@@ -271,7 +281,8 @@ Zeichnung ist kein Ergebnis für die Praxis.
 | `AVTBEREINIGEN` | Entfernplan ausführen und als neue Datei speichern |
 | `AVTKANON` | Inhaltsauszug mit Inhaltsprüfsumme, Fassungsstempel und DWGPROPS (nur lesen) |
 | `AVTFREMD` | Fremdinhalte a/b/c (nur lesen) |
-| `AVTFREMDBEREINIGEN` | alle a entfernen, b auf Wunsch als Ausnahme merken, als neue Datei speichern |
+| `AVTFREMDBEREINIGEN` | angehakte a entfernen (wie die Vorgabe der Palette), b auf Wunsch als Ausnahme merken, als neue Datei speichern |
+| `AVTFREMDPROBE` | Probezeichnung mit Grenzfällen für das Bereinigen anlegen |
 | `AVTSONDE` | API-Sonde: Beispiele je Objektart anlegen und als neue Datei speichern |
 | `AVTSONDELESEN` | Beispiele der Sonde zurücklesen (nur lesen) |
 
