@@ -1,0 +1,5 @@
+# Linientypen (Entwurf AVT 0.4.0) - alle, die die Systeme benutzen. Quelle: acadiso.lin (AutoCAD) oder EHS.lin (Stammdaten)
+ID;Name;Quelle;Beschreibung
+LT-ISO02;ACAD_ISO02W100;acadiso.lin;ISO-Strichlinie
+LT-VERD2;VERDECKT2;acadiso.lin;Verdeckt (0,5x)
+LT-DRUCK;DRUCKLEITUNG;EHS.lin;Druckleitung mit Text DL

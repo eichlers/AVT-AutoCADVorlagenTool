@@ -62,31 +62,18 @@ internal static class Fremdbereiniger
         // nichts mehr benutzt – auch über Kopfvariablen und Verweise, die der Graph nicht kennt. Was erst frei wird, wenn
         // ein anderes Ziel weg ist (z. B. ein Block in einem Mehransichtsblock), kommt in der nächsten Runde.
         var regApps = ziele.Where(z => z.Value.Kandidat.Art == "RegApp").Select(z => jetzt.Objekte[z.Key]).ToList();
-        var offen = ziele.Where(z => z.Value.Kandidat.Art != "RegApp").ToDictionary(z => z.Key, z => z.Value, StringComparer.Ordinal);
+        var loeschen = ziele.Where(z => z.Value.Kandidat.Art != "RegApp")
+            .ToDictionary(z => z.Key, z => (jetzt.Objekte[z.Key], MitPurge.Contains(z.Value.Kandidat.Art)), StringComparer.Ordinal);
         var entfernt = new List<string>();
-        var runden = 0;
+        List<string> uebrig;
+        int runden;
         using (var tr = db.TransactionManager.StartTransaction())
         {
             try
             {
-                while (offen.Count > 0)
-                {
-                    runden++;
-                    var pruefen = offen.Where(z => MitPurge.Contains(z.Value.Kandidat.Art)).Select(z => jetzt.Objekte[z.Key]).ToArray();
-                    var frei = new ObjectIdCollection(pruefen);
-                    if (pruefen.Length > 0) db.Purge(frei);
-                    var freiSet = frei.Cast<ObjectId>().ToHashSet();
-                    var jetztWeg = offen.Where(z => !MitPurge.Contains(z.Value.Kandidat.Art) || freiSet.Contains(jetzt.Objekte[z.Key])).ToList();
-                    if (jetztWeg.Count == 0) break;
-                    foreach (var (pfad, f) in jetztWeg)
-                    {
-                        var id = jetzt.Objekte[pfad];
-                        var o = tr.GetObject(id, OpenMode.ForRead);
-                        Entfernen.Objekt(tr, id, ausWoerterbuch: tr.GetObject(o.OwnerId, OpenMode.ForRead) is DBDictionary);
-                        entfernt.Add($"AVTFREMD entfernt | {f.Kandidat.Art} | {pfad}");
-                        offen.Remove(pfad);
-                    }
-                }
+                List<string> weg;
+                (weg, uebrig, runden) = Entfernen.InRunden(db, tr, loeschen);
+                entfernt.AddRange(weg.Select(p => $"AVTFREMD entfernt | {ziele[p].Kandidat.Art} | {p}"));
                 if (behalten.Count > 0) AusnahmenMerken(db, tr, behalten, entfernt);
             }
             catch (System.Exception ex)
@@ -98,7 +85,7 @@ internal static class Fremdbereiniger
             }
             tr.Commit();
         }
-        foreach (var pfad in offen.Keys) aus.Add($"AVTFREMD übersprungen | {pfad} | AutoCAD hält es für benutzt (Purge gibt es nicht frei)");
+        foreach (var pfad in uebrig) aus.Add($"AVTFREMD übersprungen | {pfad} | AutoCAD hält es für benutzt (Purge gibt es nicht frei)");
         aus.Add($"AVTFREMD Runden | {runden}");
         aus.AddRange(entfernt);
         var geloescht = entfernt.Count(z => z.StartsWith("AVTFREMD entfernt", StringComparison.Ordinal));

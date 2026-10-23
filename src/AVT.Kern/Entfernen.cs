@@ -37,4 +37,36 @@ internal static class Entfernen
         }
         return (frei.ToList(), gewollt.Where(i => !frei.Contains(i)).ToList());
     }
+
+    /// <summary>
+    /// Löschen in Runden innerhalb der offenen Transaktion: je Runde gibt AutoCADs Purge frei, was nichts mehr benutzt
+    /// (auch über Kopfvariablen und Verweise, die der Graph nicht kennt); was erst frei wird, wenn ein anderes Ziel weg ist
+    /// (z. B. ein Block in einem Mehransichtsblock), kommt in der nächsten Runde. Ziele ohne Purge-Prüfung werden direkt gelöscht.
+    /// Wirft bei einem Fehler – der Aufrufer verwirft dann die Transaktion. Liefert gelöschte und übrige Ziele.
+    /// </summary>
+    public static (List<string> Geloescht, List<string> Uebrig, int Runden) InRunden(Database db, Transaction tr,
+        IReadOnlyDictionary<string, (ObjectId Id, bool MitPurge)> ziele)
+    {
+        var offen = ziele.ToDictionary(z => z.Key, z => z.Value, StringComparer.Ordinal);
+        var weg = new List<string>();
+        var runden = 0;
+        while (offen.Count > 0)
+        {
+            runden++;
+            var pruefen = offen.Where(z => z.Value.MitPurge).Select(z => z.Value.Id).ToArray();
+            var frei = new ObjectIdCollection(pruefen);
+            if (pruefen.Length > 0) db.Purge(frei);
+            var freiSet = frei.Cast<ObjectId>().ToHashSet();
+            var jetzt = offen.Where(z => !z.Value.MitPurge || freiSet.Contains(z.Value.Id)).ToList();
+            if (jetzt.Count == 0) break;
+            foreach (var (pfad, (id, _)) in jetzt)
+            {
+                var o = tr.GetObject(id, OpenMode.ForRead);
+                Objekt(tr, id, ausWoerterbuch: tr.GetObject(o.OwnerId, OpenMode.ForRead) is DBDictionary);
+                weg.Add(pfad);
+                offen.Remove(pfad);
+            }
+        }
+        return (weg, offen.Keys.ToList(), runden);
+    }
 }

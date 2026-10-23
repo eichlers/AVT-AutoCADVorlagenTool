@@ -1,0 +1,8 @@
+# Name des Hausstandards an EINER Stelle (Bauplan 12, Nutzer 23.10.2026) - Entwurf AVT 0.4.0
+Schluessel;Wert;Bemerkung
+Kuerzel;EHS;Vorsilbe fuer Saetze, Stile, Woerterbuecher, RegApp, DWGPROPS (muss zu AVT passen)
+Langname;Eichler-Hausstandard;
+Titel;EHS – Eichler-Hausstandard · Schema-Vorlage;DWGPROPS Titel
+Thema;TGA-Schema, AutoCAD MEP 2026 · Kern;DWGPROPS Thema
+Autor;S. Eichler · Eichler-GmbH;DWGPROPS Autor
+Systemlayer;EHS_S_{Kuerzel};Layername je System (ueber den Layer-Schluessel) - ENTWURF, nicht entschieden

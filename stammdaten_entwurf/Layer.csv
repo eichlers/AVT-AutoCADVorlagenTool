@@ -1,0 +1,5 @@
+# Layer ohne System (ENTWURF AVT 0.4.0 - Namen und Farben noch nicht entschieden; Systemlayer kommen ueber die Layer-Schluessel)
+ID;Name;Farbe;Linientyp;Linienstaerke;Plotten;Beschreibung
+LA-SCHEMA;EHS_Schema;ACI 7;Continuous;0.25 mm;ja;Schemalinien ohne System
+LA-TEXT;EHS_Text;ACI 7;Continuous;0.18 mm;ja;Beschriftung
+LA-AF;EHS_Ansichtsfenster;ACI 8;Continuous;0.18 mm;nein;Ansichtsfenster (nicht plotten)

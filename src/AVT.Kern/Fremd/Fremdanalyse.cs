@@ -79,7 +79,7 @@ internal static class Fremdanalyse
     }
 
     /// <summary>Was die Kopfvariablen der Zeichnung benutzen – der Zeigergraph sieht sie nicht.</summary>
-    static IEnumerable<(string Name, ObjectId Id)> KopfVerweise(Database db)
+    internal static IEnumerable<(string Name, ObjectId Id)> KopfVerweise(Database db)
     {
         (string, Func<ObjectId>)[] werte =
         [
@@ -132,7 +132,7 @@ internal static class Fremdanalyse
         return null;
     }
 
-    static HashSet<ObjectId> Teilbaum(ObjectId id, Dictionary<ObjectId, List<ObjectId>> kinder)
+    internal static HashSet<ObjectId> Teilbaum(ObjectId id, Dictionary<ObjectId, List<ObjectId>> kinder)
     {
         var alle = new HashSet<ObjectId> { id };
         var stapel = new Stack<ObjectId>([id]);

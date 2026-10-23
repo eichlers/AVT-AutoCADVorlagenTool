@@ -1,0 +1,8 @@
+# Autodesk-Fachinhalt der Leervorlage, den die EHS-Vorlage nicht uebernimmt (ENTWURF AVT 0.4.0, Basis "Aecb Model (D A CH Ctb) mm").
+# Muster = Pfad im Inhaltsauszug, * am Ende = alle Eintraege. Entfernt wird nur, was nach dem Verweisgraph unbenutzt ist.
+Muster;Grund
+NOD/AECB_SCHEMATICSYSTEMDEFS/*;Autodesk-Schemasysteme - EHS bringt eigene (Systeme.csv)
+NOD/AEC_PROPERTY_SET_DEFS/*;Autodesk-Satzdefinitionen - EHS bringt eigene (Feldkatalog, folgt)
+NOD/AEC_LIST_DEFINITIONS/*;Autodesk-Listen
+NOD/AEC_CLASSIFICATION_SYSTEM_DEFS/*;Autodesk-Klassifizierungen
+NOD/AEC_SCHEDULE_TABLE_STYLES/*;Autodesk-Bauteiltabellenstile - ADM bringt eigene
