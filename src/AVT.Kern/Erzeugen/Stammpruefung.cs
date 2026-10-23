@@ -58,7 +58,7 @@ internal static class Stammpruefung
         }
 
         // Systeme + Layer-Schlüssel
-        var sysTab = Tabelle.Lies(systemeCsv, "System", "Kuerzel_LabelName", "Gruppe_FamilyName", "Farbe_Thema_Medien", "Linientyp_Thema", "Linienstaerke_Thema");
+        var sysTab = Erzeuger.Systemtabelle(systemeCsv);
         var systeme = new Aecb.DictionarySchematicSystemDefinition(db);
         var stile = new AecDb.DictionaryLayerKeyStyle(db);
         var schluessel = new Dictionary<string, AecDb.LayerKeyDefinition>(StringComparer.OrdinalIgnoreCase);
@@ -71,18 +71,19 @@ internal static class Stammpruefung
         var soll = new HashSet<string>(StringComparer.Ordinal);
         foreach (var (_, w) in sysTab.Zeilen)
         {
-            soll.Add(w["System"]);
-            if (!systeme.Has(w["System"], tr)) { F($"System {w["System"]} fehlt"); continue; }
-            var s = (Aecb.SchematicSystemDefinition)tr.GetObject(systeme.GetAt(w["System"]), OpenMode.ForRead);
-            var k = w["Kuerzel_LabelName"];
-            if (s.LabelName != k) F($"System {w["System"]}: Kürzel {s.LabelName} statt {k}");
-            if (s.FamilyName != w["Gruppe_FamilyName"]) F($"System {w["System"]}: Gruppe {s.FamilyName} statt {w["Gruppe_FamilyName"]}");
-            if (s.LayerKey != k) F($"System {w["System"]}: Layer-Schlüssel {s.LayerKey} statt {k}");
-            if (IdVon(s) != "SYS-" + k) F($"System {w["System"]}: ID fehlt/falsch");
+            var name = w["Benennung"];
+            soll.Add(name);
+            if (!systeme.Has(name, tr)) { F($"System {name} fehlt"); continue; }
+            var s = (Aecb.SchematicSystemDefinition)tr.GetObject(systeme.GetAt(name), OpenMode.ForRead);
+            var k = w["Kuerzel"];
+            if (s.LabelName != k) F($"System {name}: Kürzel {s.LabelName} statt {k}");
+            if (s.FamilyName != w["Gruppe"]) F($"System {name}: Gruppe {s.FamilyName} statt {w["Gruppe"]}");
+            if (s.LayerKey != k) F($"System {name}: Layer-Schlüssel {s.LayerKey} statt {k}");
+            if (IdVon(s) != "SYS-" + k) F($"System {name}: ID fehlt/falsch");
             if (!schluessel.TryGetValue(k, out var d)) { F($"Layer-Schlüssel {k} fehlt"); continue; }
-            if (!Gleich(d.Color, Farbe.Lies(w["Farbe_Thema_Medien"]))) F($"Layer-Schlüssel {k}: Farbe {d.Color} statt {w["Farbe_Thema_Medien"]}");
-            if (!d.Linetype.Equals(w["Linientyp_Thema"], StringComparison.OrdinalIgnoreCase)) F($"Layer-Schlüssel {k}: Linientyp {d.Linetype} statt {w["Linientyp_Thema"]}");
-            if ((int)d.Lineweight != Stammwerte.Linienstaerke(w["Linienstaerke_Thema"])) F($"Layer-Schlüssel {k}: Linienstärke {d.Lineweight} statt {w["Linienstaerke_Thema"]}");
+            if (!Gleich(d.Color, Farbe.Lies(w["Farbe"]))) F($"Layer-Schlüssel {k}: Farbe {d.Color} statt {w["Farbe"]}");
+            if (!d.Linetype.Equals(w["Linientyp"], StringComparison.OrdinalIgnoreCase)) F($"Layer-Schlüssel {k}: Linientyp {d.Linetype} statt {w["Linientyp"]}");
+            if ((int)d.Lineweight != Stammwerte.Linienstaerke(w["Linienstaerke"])) F($"Layer-Schlüssel {k}: Linienstärke {d.Lineweight} statt {w["Linienstaerke"]}");
         }
         foreach (ObjectId id in systeme.Records)
         {

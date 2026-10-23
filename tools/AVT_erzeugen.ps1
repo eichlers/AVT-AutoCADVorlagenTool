@@ -4,7 +4,7 @@ param(
     [string] $Arbeit = 'C:\Temp\AVT\Erzeugen',
     [string] $Fassung = '1.0.0-e1',
     [string] $Vorgaenger = 'EHS 0.2 (Entwurf, nur Beleg)',
-    # Stammdaten (Entwurf im AVT-Projekt) und Systeme-Tabelle.
+    # Stammdaten NUR aus dem Schema-Ordner (AMK, Leitsatz "eine Sache, ein Ort"); Systeme-Tabelle darin.
     [string] $Stammdaten = '',
     [string] $Systeme = '',
     # Ein zweiter, unabhaengiger Bau zum Vergleich der Inhaltspruefsumme.
@@ -15,15 +15,15 @@ param(
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'avt_gemeinsam.ps1')
 $wurzel = Split-Path $PSScriptRoot -Parent
-if (-not $Stammdaten) { $Stammdaten = Join-Path $wurzel 'stammdaten_entwurf' }
+if (-not $Stammdaten) { $Stammdaten = Join-Path $env:USERPROFILE 'Meine Ablage\Vorlagen\CAD\CADStandardEichlerGmbH\Schema\Stammdaten' }
 if (-not $Systeme) { $Systeme = Join-Path $Stammdaten 'Systeme.csv' }
 if (-not (Test-Path $Basis)) { throw "Basis fehlt: $Basis" }
 $Arbeit = Arbeitsordner $Arbeit
 $dll = Baue $Arbeit
-# Herkunft ohne Datum: Stand der Stammdaten = Git-Commit des AVT-Projekts (Warnung, wenn ungesichert), Basis mit Pruefsumme.
-$commit = (& git -C $wurzel rev-parse --short HEAD).Trim()
-$offen = (& git -C $wurzel status --porcelain -- stammdaten_entwurf) -ne $null
-$stand = "AVT $commit" + $(if ($offen) { ' (ungesichert!)' } else { '' })
+# Herkunft ohne Datum: Stand der Stammdaten = Git-Commit des Schema-Repos (Warnung, wenn ungesichert), Basis mit Pruefsumme.
+$repo = Split-Path $Stammdaten -Parent
+$commit = if (Test-Path (Join-Path $repo '.git')) { (& git -C $repo rev-parse --short HEAD) } else { $null }
+$stand = if ($commit) { "Schema $($commit.Trim())" + $(if ((& git -C $repo status --porcelain -- (Split-Path $Stammdaten -Leaf)) -ne $null) { ' (ungesichert!)' } else { '' }) } else { "ohne Git: $Stammdaten" }
 $basisText = "$(Split-Path $Basis -Leaf) SHA256 $((Get-FileHash $Basis -Algorithm SHA256).Hash.Substring(0, 16))"
 $version = [Reflection.AssemblyName]::GetAssemblyName(($dll -replace '/', '\')).Version
 $avt = "$($version.Major).$($version.Minor).$($version.Build)"

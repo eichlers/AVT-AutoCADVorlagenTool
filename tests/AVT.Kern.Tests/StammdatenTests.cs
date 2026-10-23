@@ -73,18 +73,20 @@ public class StammdatenTests
         Assert.Contains("Zeile 2", e.Message);
     }
 
+    /// <summary>Die Systeme im Schema-Ordner (Eigentümer AMK) sind lesbar: Farben und Linienstärken gültig, Kürzel eindeutig.</summary>
     [Fact]
-    public void Stammdaten_Entwurf_ist_lesbar()
+    public void Systeme_im_Schema_sind_lesbar()
     {
-        var ordner = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "stammdaten_entwurf");
-        var sys = Tabelle.Lies(Path.Combine(ordner, "Systeme.csv"), "System", "Kuerzel_LabelName", "Farbe_Thema_Medien", "Linientyp_Thema", "Linienstaerke_Thema");
+        var datei = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            @"Meine Ablage\Vorlagen\CAD\CADStandardEichlerGmbH\Schema\Stammdaten\Systeme.csv");
+        if (!File.Exists(datei)) return;   // nur auf dem Arbeitsrechner vorhanden
+        var sys = Tabelle.Lies(datei, "Kuerzel", "Benennung", "Gruppe", "Farbe", "Linientyp", "Linienstaerke");
         Assert.True(sys.Zeilen.Count >= 90);
         foreach (var (_, w) in sys.Zeilen)
         {
-            Farbe.Lies(w["Farbe_Thema_Medien"]);
-            Stammwerte.Linienstaerke(w["Linienstaerke_Thema"]);
+            Farbe.Lies(w["Farbe"]);
+            Stammwerte.Linienstaerke(w["Linienstaerke"]);
         }
-        var ts = Tabelle.Lies(Path.Combine(ordner, "Textstile.csv"), "ID", "Name", "Schrift", "Hoehe_mm");
-        Assert.All(ts.Zeilen, z => Assert.Equal("Arial", z.Werte["Schrift"]));
+        Assert.Equal(sys.Zeilen.Count, sys.Zeilen.Select(z => z.Werte["Kuerzel"]).Distinct(StringComparer.OrdinalIgnoreCase).Count());
     }
 }

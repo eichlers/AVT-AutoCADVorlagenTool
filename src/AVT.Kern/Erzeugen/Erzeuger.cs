@@ -39,8 +39,7 @@ internal static class Erzeuger
         using (var tr = db.TransactionManager.StartTransaction())
         {
             aus.AddRange(Layer(db, tr, Tabelle.Lies(Path.Combine(stammdaten, "Layer.csv"), "ID", "Name", "Farbe", "Linientyp", "Linienstaerke", "Plotten")));
-            aus.AddRange(Systeme(db, tr, Tabelle.Lies(systemeCsv, "System", "Kuerzel_LabelName", "Gruppe_FamilyName", "Farbe_Thema_Medien",
-                "Linientyp_Thema", "Linienstaerke_Thema"), standard));
+            aus.AddRange(Systeme(db, tr, Systemtabelle(systemeCsv), standard));
             Stempel(db, tr, auftrag);
             tr.Commit();
         }
@@ -260,28 +259,28 @@ internal static class Erzeuger
         var kuerzel = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var (zeile, w) in t.Zeilen)
         {
-            var k = w["Kuerzel_LabelName"];
+            var k = w["Kuerzel"];
             if (!kuerzel.Add(k)) throw new InvalidDataException($"{t.Datei}, Zeile {zeile}: Kürzel {k} doppelt");
-            var linientyp = w["Linientyp_Thema"];
+            var linientyp = w["Linientyp"];
             LinientypId(db, tr, linientyp);
             var layer = Stammwerte.Fuelle(vorlage, new Dictionary<string, string> { ["Kuerzel"] = k });
             stil.KeyDefinitions.Add(new AecDb.LayerKeyDefinition
             {
-                Key = k, LayerName = layer, Color = Farbwert(Farbe.Lies(w["Farbe_Thema_Medien"])), Linetype = linientyp,
-                Lineweight = (LineWeight)Stammwerte.Linienstaerke(w["Linienstaerke_Thema"]),
+                Key = k, LayerName = layer, Color = Farbwert(Farbe.Lies(w["Farbe"])), Linetype = linientyp,
+                Lineweight = (LineWeight)Stammwerte.Linienstaerke(w["Linienstaerke"]),
             });
             Aecb.SchematicSystemDefinition s;
-            if (systeme.Has(w["System"], tr)) s = (Aecb.SchematicSystemDefinition)tr.GetObject(systeme.GetAt(w["System"]), OpenMode.ForWrite);
+            if (systeme.Has(w["Benennung"], tr)) s = (Aecb.SchematicSystemDefinition)tr.GetObject(systeme.GetAt(w["Benennung"]), OpenMode.ForWrite);
             else
             {
                 s = new Aecb.SchematicSystemDefinition();
                 s.SetToStandard(db);
                 s.SubSetDatabaseDefaults(db);
-                systeme.AddNewRecord(w["System"], s);
+                systeme.AddNewRecord(w["Benennung"], s);
                 tr.AddNewlyCreatedDBObject(s, true);
             }
             s.LabelName = k;
-            s.FamilyName = w["Gruppe_FamilyName"];
+            s.FamilyName = w["Gruppe"];
             s.LayerKey = k;
             Id(s, "SYS-" + k);
         }
@@ -289,6 +288,9 @@ internal static class Erzeuger
         aus.Add($"AVTERZEUGEN Systeme | {t.Zeilen.Count} | Layer-Schlüsselstil {LayerSchluesselstil} mit {stil.KeyDefinitions.Count} Schlüsseln");
         return aus;
     }
+
+    /// <summary>Systeme.csv aus dem Schema-Ordner (Eigentümer AMK): Kuerzel, Benennung, Gruppe, Farbe, Linientyp, Linienstaerke.</summary>
+    internal static Tabelle Systemtabelle(string datei) => Tabelle.Lies(datei, "Kuerzel", "Benennung", "Gruppe", "Farbe", "Linientyp", "Linienstaerke");
 
     static void Stempel(Database db, Transaction tr, Bauauftrag a)
     {
