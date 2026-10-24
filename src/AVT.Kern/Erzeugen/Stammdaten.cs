@@ -27,7 +27,9 @@ public static class Stammwerte
     /// <summary>„0.30 mm“ → 30 (AutoCAD-Linienstärke in 1/100 mm); nur zulässige Stufen.</summary>
     public static int Linienstaerke(string text)
     {
-        var m = Regex.Match(text.Trim(), @"^(\d+(?:[.,]\d+)?)\s*mm$", RegexOptions.IgnoreCase);
+        // „Vorgabe“ = Linienstärke-Vorgabe von AutoCAD (LWDEFAULT), wie der RI-9.1-Rahmenlayer.
+        if (text.Trim().Equals("Vorgabe", StringComparison.OrdinalIgnoreCase)) return -3;
+        var m =Regex.Match(text.Trim(), @"^(\d+(?:[.,]\d+)?)\s*mm$", RegexOptions.IgnoreCase);
         if (!m.Success) throw new FormatException($"Linienstärke „{text}“ nicht lesbar (erwartet z. B. „0.30 mm“)");
         var wert = (int)Math.Round(double.Parse(m.Groups[1].Value.Replace(',', '.'), CultureInfo.InvariantCulture) * 100);
         if (!Linienstaerken.Contains(wert)) throw new FormatException($"Linienstärke „{text}“ ist keine AutoCAD-Stufe");

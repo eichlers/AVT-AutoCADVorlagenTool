@@ -28,20 +28,41 @@ internal static class Layouts
     public static List<string> Bauen(Database db, string stammdaten, Action<DBObject, string> id)
     {
         var aus = new List<string>();
-        var bausteine = Tabelle.Lies(Path.Combine(stammdaten, "Bausteine.csv"), "ID", "Name", "Datei", "SHA256");
-        foreach (var (_, w) in bausteine.Zeilen) aus.Add(BlockAusBaustein(db, stammdaten, w, id));
-        foreach (var (_, w) in Tabelle.Lies(Path.Combine(stammdaten, "Layouts.csv"), "ID", "Layout", "Plotter", "Papier", "Drehung", "Plotbereich", "Massstab", "Rahmenblock", "Rahmenformat", "Rahmenlayer").Zeilen)
-            aus.AddRange(Layout(db, w, id));
+        var tabelle = Tabelle.Lies(Path.Combine(stammdaten, "Layouts.csv"), "ID", "Layout", "Plotter", "Papier", "Drehung", "Plotbereich", "Massstab", "Rahmenblock", "Rahmenformat", "Rahmenlayer");
+        foreach (var (_, w) in tabelle.Zeilen) aus.AddRange(Layout(db, w, id));
+        aus.AddRange(AndereEntfernen(db, tabelle.Zeilen.Select(z => z.Werte["Layout"]).ToHashSet(StringComparer.OrdinalIgnoreCase)));
         return aus;
     }
 
-    static string BlockAusBaustein(Database db, string stammdaten, IReadOnlyDictionary<string, string> w, Action<DBObject, string> id)
+    /// <summary>Papierbereichs-Layouts der Basis, die nicht in Layouts.csv stehen (DACH: „Work“), entfallen – Vorschlag AVT.</summary>
+    static List<string> AndereEntfernen(Database db, HashSet<string> soll)
     {
-        var datei = Path.Combine(stammdaten, w["Datei"]);
-        string ist;
-        using (var s = File.OpenRead(datei)) ist = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(s));
-        if (!ist.Equals(w["SHA256"], StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException($"Baustein {w["Datei"]}: Prüfsumme {ist[..16]} … ≠ Bausteine.csv {w["SHA256"][..Math.Min(16, w["SHA256"].Length)]} …");
+        var aus = new List<string>();
+        var alt = HostApplicationServices.WorkingDatabase;
+        HostApplicationServices.WorkingDatabase = db;
+        try
+        {
+            List<string> weg;
+            using (var tr = db.TransactionManager.StartTransaction())
+            {
+                var dict = (DBDictionary)tr.GetObject(db.LayoutDictionaryId, OpenMode.ForRead);
+                weg = dict.Cast<DBDictionaryEntry>().Select(e => (Layout)tr.GetObject(e.Value, OpenMode.ForRead))
+                    .Where(l => !l.ModelType && !soll.Contains(l.LayoutName)).Select(l => l.LayoutName).ToList();
+                tr.Commit();
+            }
+            foreach (var n in weg)
+            {
+                LayoutManager.Current.DeleteLayout(n);
+                aus.Add($"AVTERZEUGEN Layout der Basis entfernt | {n}");
+            }
+        }
+        finally { HostApplicationServices.WorkingDatabase = alt; }
+        return aus;
+    }
+
+    internal static string BlockAusBaustein(Database db, string stammdaten, IReadOnlyDictionary<string, string> w, Action<DBObject, string> id)
+    {
+        var (datei, ist) = Bausteine.Datei(stammdaten, w);
         using var bs = new Database(false, true);
         bs.ReadDwgFile(datei, FileOpenMode.OpenForReadAndAllShare, true, "");
         ObjectId quelle;

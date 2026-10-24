@@ -206,10 +206,24 @@ public sealed class VorlageLesen
                 nr++;
                 var dp = k.DisplayProperties;
                 var darst = dp is null ? "keine" : string.Join(" ", dp.GetType().GetProperties().Where(p => p.Name is "Color" or "LinetypeId" or "LineWeight" or "LinetypeScale" or "Visible").Select(p => { try { var v = p.GetValue(dp); return $"{p.Name}={(v is ObjectId o && !o.IsNull ? ((SymbolTableRecord)tr.GetObject(o, OpenMode.ForRead)).Name : Convert.ToString(v))}"; } catch (System.Exception) { return $"{p.Name}=?"; } }));
-                aus.Add($"KOMPONENTE | {t.Name} | {nr} | {k.Name} | Regel {k.Rules?.DisplayString} | {RegelZiel(tr, k.Rules)} | {darst}");
+                aus.Add($"KOMPONENTE | {t.Name} | {nr} | {k.Name} | Regel {k.Rules?.DisplayString} | {Unterregeln(k.Rules)} | {darst}");
             }
         }
     }
+
+    /// <summary>Die eigentlichen Bedingungen stehen in der Unterregel-Liste der Kopfregel (Befund RI 9.1, 24.10.2026).</summary>
+    static string Unterregeln(object? kopf)
+    {
+        if (kopf?.GetType().GetProperty("DisplayThemeRules")?.GetValue(kopf) is not System.Collections.IEnumerable liste) return "";
+        return string.Join(" & ", liste.Cast<object>().Select(u =>
+        {
+            dynamic d = u;
+            try { return $"{d.PropertyOwnerName}.{d.PropertyName} {Kurz((string)d.ComparisonOperator.ToString())} „{d.ValueAsString}“"; }
+            catch (System.Exception) { return u.GetType().Name; }
+        }));
+    }
+
+    static string Kurz(string op) => op.Replace("RuleComparisonOperator", "");
 
     static string RegelZiel(Transaction tr, object? r)
     {

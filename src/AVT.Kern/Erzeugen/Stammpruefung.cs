@@ -115,6 +115,9 @@ internal static class Stammpruefung
             }
         }
 
+        // Teil 2: Wertelisten, Sätze, Themen, Bausteine, Layouts.
+        Stammpruefung2.Pruefen(db, tr, stammdaten, F, t => aus.Add($"AVTSTAMM OK | {t}"));
+
         // Fassung und DWGPROPS
         var fassung = Zeichnungsangaben.FassungLesen(db, tr).ToList();
         if (fassung.Count == 1 && fassung[0] is "fehlt" or "unlesbar") F($"Fassungsstempel {Standard.Stempel} {fassung[0]}");

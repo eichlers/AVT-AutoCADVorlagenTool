@@ -78,7 +78,8 @@ public sealed class Baustein
         foreach (ObjectId l in (LayerTable)tr.GetObject(bs.LayerTableId, OpenMode.ForRead))
         {
             var n = ((LayerTableRecord)tr.GetObject(l, OpenMode.ForRead)).Name;
-            if (n != "0") fehler.Add($"Layer {n} kam mit");
+            // Defpoints: AutoCAD-Standardlayer der Parameter dynamischer Blöcke, kein Fremdinhalt.
+            if (n != "0" && !n.Equals("Defpoints", StringComparison.OrdinalIgnoreCase)) fehler.Add($"Layer {n} kam mit");
         }
         return fehler;
     }

@@ -43,6 +43,18 @@ public sealed class ThemenProbe
             var t = Thema(tr, "RohrKanalKlassen", OpenMode.ForRead);
             return string.Join(" || ", t.DisplayThemeComponents.Cast<AecDb.DisplayThemeComponentBase>().Take(3).Select(k => Regel(tr, k.Rules)));
         });
+        Versuch("Verschachtelte Regeln Medien 1-4 und RohrKanalKlassen 2-3", tr =>
+        {
+            var teile = new List<string>();
+            foreach (var (thema, von, bis) in new[] { ("Medien", 0, 4), ("RohrKanalKlassen", 1, 3) })
+                foreach (var k in Thema(tr, thema, OpenMode.ForRead).DisplayThemeComponents.Cast<AecDb.DisplayThemeComponentBase>().Skip(von).Take(bis - von))
+                {
+                    var unter = k.Rules?.GetType().GetProperty("DisplayThemeRules")?.GetValue(k.Rules) as System.Collections.IEnumerable;
+                    var liste = unter?.Cast<object>().Select(u => { dynamic d = u; try { return $"{d.PropertyOwnerName}.{d.PropertyName} {d.ComparisonOperator} „{d.ValueAsString}“"; } catch (System.Exception) { return u.GetType().Name; } }).ToList() ?? [];
+                    teile.Add($"{thema}/{k.Name}: {liste.Count} Unterregeln: {string.Join(" ; ", liste)}");
+                }
+            return string.Join(" || ", teile);
+        });
         Versuch("Komponente klonen", tr =>
         {
             var t = Thema(tr, "Medien", OpenMode.ForWrite);

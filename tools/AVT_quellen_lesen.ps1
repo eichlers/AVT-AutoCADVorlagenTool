@@ -33,6 +33,14 @@ $bText = Join-Path $Arbeit 'baustein.txt'
 Lauf (Join-Path $Arbeit 'lauf_baustein') $ri2 $dll @('AVTBAUSTEIN', (P $bText), (P $rahmen), 'Rocherahmen', 'EHS_Rahmen') @($bText)
 PruefeEnde $bText 'AVTENDE ok'
 
+$themen = Join-Path $bausteine 'EHS_Themen.dwg'
+if (Test-Path $themen) { Remove-Item $themen -Force }
+$ri3 = Kopie (Join-Path $schema 'EHS_0.0_Basis_aus_RI_9.1_20261023.dwg') 'ri91_themen.dwg'
+$tText = Join-Path $Arbeit 'themenbaustein.txt'
+Lauf (Join-Path $Arbeit 'lauf_themen') $ri3 $dll @('AVTTHEMENBAUSTEIN', (P $tText), (P $themen), 'Medien') @($tText)
+PruefeEnde $tText 'AVTENDE ok'
+Zeilen $tText | Where-Object { $_ -like 'AVTTHEMENBAUSTEIN*' }
+
 $dach = Kopie 'C:\ProgramData\Autodesk\MEP 2026\deu\Template\Aecb Model (D A CH Ctb) mm.dwt' 'dach.dwg'
 $dText = Join-Path $Arbeit 'dach_vorlage.txt'
 Lauf (Join-Path $Arbeit 'lauf_dach') $dach $dll @('AVTVORLAGELESEN', (P $dText)) @($dText)

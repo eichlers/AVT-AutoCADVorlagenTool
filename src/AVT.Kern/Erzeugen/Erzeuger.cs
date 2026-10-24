@@ -48,6 +48,12 @@ internal static class Erzeuger
             aus.AddRange(Saetze.Bauen(db, tr, stammdaten, Id));
             tr.Commit();
         }
+        aus.AddRange(Bausteine.Bauen(db, stammdaten, Id));
+        using (var tr = db.TransactionManager.StartTransaction())
+        {
+            aus.AddRange(Themen.Bauen(db, tr, stammdaten, Id));
+            tr.Commit();
+        }
         aus.AddRange(Layouts.Bauen(db, stammdaten, Id));
         return aus;
     }
