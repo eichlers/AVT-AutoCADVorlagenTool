@@ -48,6 +48,11 @@ Nicht AVT: Symbolstile erzeugen/ändern (ASG), Stempel (ATT), Tabellen/Listen/Da
   (Stammdaten, Erzeuger, Stammpruefung), AVTERZEUGEN → AVTABSCHLIESSEN (Prüfsumme am als Dokument geöffneten Stand) →
   AVTSTAMMPRUEFEN, `tools/AVT_erzeugen.ps1 [-Zweimal]`. Entwurf 1.0.0-e1 in `C:\Temp\AVT\Erzeugen`, ganz aus dem Schema: 2 Bauten gleich (9db73ae0),
   0 Fehler, AUDIT 0. Inhaltsauszug: anonyme Wörterbucheinträge nach Inhalt (`*A~…`), EHS 0.2 jetzt ece51ba5.
+- **0.4.0 Teil 2 – EHS-Entwurf 1.0.0-e3 (24.10.2026, Auftrag AMK, „bereit“ gemeldet):** Sätze/Feldkatalog (F1–F10), Wertelisten,
+  Themen Medien/Stoffgruppen/RohrKanalKlassen (Baustein-Komponente, Regel in der Unterregel), Rahmen-Baustein `EHS_Rahmen`
+  (45 Formate aus RI 9.1) + Layout „Vorlage“, L7/L8/L9. 3 Läufe gleich (4637683b…), AUDIT 0 (auch allein), Stammprüfung 0.
+  Stammdaten-Vorschläge nur in `C:\Temp\AVT\Stammdaten_Vorschlag\` (AMK committet ins Schema). Bericht `C:\Temp\AVT\Bericht_EHS_1.0.0-e3.md`.
+  Merke: Listenfeld braucht eine Vorgabe (sonst AUDIT eNullObjectId); headless nur `_Y`/`_N`.
 - **Vorgemerkt:** Prüfen gegen Unterklassen.csv/Bauarten.csv (DIN EN IEC 81346-2:2020-10); Kunden-Bezug (Roche) im Kern = Fehler,
   Begriffe aus den Stammdaten. Textstile nur Arial (TrueType) – Nutzer 23.10.: „muss immer Arial sein, damit man im PDF
   suchen kann“; Stammdaten\Textstile.csv (Rollen EHS_Text_18/25/35/50), Prüfen: andere Schrift (SHX, Kundenschrift) = Fehler,
