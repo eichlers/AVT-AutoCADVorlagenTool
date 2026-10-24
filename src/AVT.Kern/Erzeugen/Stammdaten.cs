@@ -43,7 +43,18 @@ public static class Stammwerte
     /// <summary>Ist die Schrift Arial (TrueType)? Den Dateinamen „arial.ttf“ trägt AutoCAD beim Speichern selbst ein.</summary>
     public static bool IstArial(string schriftart, string? datei) =>
         schriftart.Equals("Arial", StringComparison.OrdinalIgnoreCase)
-        && (string.IsNullOrEmpty(datei) || Path.GetFileName(datei).Equals("arial.ttf", StringComparison.OrdinalIgnoreCase));
+        && (string.IsNullOrEmpty(datei) || ArialDateien.Contains(Path.GetFileName(datei), StringComparer.OrdinalIgnoreCase));
+
+    // Arial normal, fett, kursiv, fett-kursiv (L9 EHS_Text_Fett).
+    static readonly string[] ArialDateien = ["arial.ttf", "arialbd.ttf", "ariali.ttf", "arialbi.ttf"];
+
+    /// <summary>„ja“/„nein“ aus den Stammdaten; leer = nein. Alles andere ist ein Fehler.</summary>
+    public static bool JaNein(string? text) => (text ?? "").Trim().ToLowerInvariant() switch
+    {
+        "ja" => true,
+        "" or "nein" => false,
+        var x => throw new FormatException($"„{x}“ – erwartet ja oder nein"),
+    };
 
     /// <summary>„EHS_S_{Kuerzel}“ mit Werten füllen.</summary>
     public static string Fuelle(string vorlage, IReadOnlyDictionary<string, string> werte) =>

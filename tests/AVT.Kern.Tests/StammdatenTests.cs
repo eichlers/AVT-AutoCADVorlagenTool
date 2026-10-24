@@ -15,6 +15,25 @@ public class StammdatenTests
         Assert.Equal(index, f.Index);
     }
 
+    [Theory]
+    [InlineData("ja", true)]
+    [InlineData(" Ja ", true)]
+    [InlineData("nein", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void JaNein_wird_gelesen(string? text, bool soll) => Assert.Equal(soll, Stammwerte.JaNein(text));
+
+    [Fact]
+    public void JaNein_lehnt_anderes_ab() => Assert.Throws<FormatException>(() => Stammwerte.JaNein("vielleicht"));
+
+    [Theory]
+    [InlineData("Arial", "arialbd.ttf", true)]   // L9 EHS_Text_Fett
+    [InlineData("Arial", "arial.ttf", true)]
+    [InlineData("Arial", "", true)]
+    [InlineData("Arial", "romans.shx", false)]
+    [InlineData("Arial Narrow", "arialn.ttf", false)]
+    public void Arial_auch_fett(string schrift, string datei, bool soll) => Assert.Equal(soll, Stammwerte.IstArial(schrift, datei));
+
     [Fact]
     public void Rgb_wird_gelesen()
     {

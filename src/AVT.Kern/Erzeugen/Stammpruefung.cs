@@ -28,6 +28,8 @@ internal static class Stammpruefung
             if (!tsTab.Has(w["Name"])) { F($"Textstil {w["Name"]} fehlt"); continue; }
             var s = (TextStyleTableRecord)tr.GetObject(tsTab[w["Name"]], OpenMode.ForRead);
             if (Math.Abs(s.TextSize - Stammwerte.Zahl(w["Hoehe_mm"])) > 1e-9) F($"Textstil {w["Name"]}: Höhe {s.TextSize} statt {w["Hoehe_mm"]}");
+            if (s.Font.Bold != Stammwerte.JaNein(w.GetValueOrDefault("Fett"))) F($"Textstil {w["Name"]}: Fett {s.Font.Bold} statt {w.GetValueOrDefault("Fett")}");
+            if ((s.Annotative == AnnotativeStates.True) != Stammwerte.JaNein(w.GetValueOrDefault("Annotativ"))) F($"Textstil {w["Name"]}: annotativ {s.Annotative} statt {w.GetValueOrDefault("Annotativ")}");
             if (IdVon(s) != w["ID"]) F($"Textstil {w["Name"]}: ID „{IdVon(s)}“ statt {w["ID"]}");
         }
         foreach (ObjectId id in tsTab)
@@ -84,6 +86,12 @@ internal static class Stammpruefung
             if (!Gleich(d.Color, Farbe.Lies(w["Farbe"]))) F($"Layer-Schlüssel {k}: Farbe {d.Color} statt {w["Farbe"]}");
             if (!d.Linetype.Equals(w["Linientyp"], StringComparison.OrdinalIgnoreCase)) F($"Layer-Schlüssel {k}: Linientyp {d.Linetype} statt {w["Linientyp"]}");
             if ((int)d.Lineweight != Stammwerte.Linienstaerke(w["Linienstaerke"])) F($"Layer-Schlüssel {k}: Linienstärke {d.Lineweight} statt {w["Linienstaerke"]}");
+            // L7: Systemlayer angelegt, Werte wie der Schlüssel.
+            if (!laTab.Has(d.LayerName)) { F($"Systemlayer {d.LayerName} fehlt"); continue; }
+            var sl = (LayerTableRecord)tr.GetObject(laTab[d.LayerName], OpenMode.ForRead);
+            if (!Gleich(sl.Color, Farbe.Lies(w["Farbe"]))) F($"Systemlayer {d.LayerName}: Farbe {sl.Color} statt {w["Farbe"]}");
+            if ((int)sl.LineWeight != Stammwerte.Linienstaerke(w["Linienstaerke"])) F($"Systemlayer {d.LayerName}: Linienstärke {sl.LineWeight} statt {w["Linienstaerke"]}");
+            if (IdVon(sl) != "LA-S-" + k) F($"Systemlayer {d.LayerName}: ID fehlt/falsch");
         }
         foreach (ObjectId id in systeme.Records)
         {

@@ -156,12 +156,17 @@ internal static class Erzeuger
                 s = new TextStyleTableRecord { Name = w["Name"] };
                 tabelle.Add(s); tr.AddNewlyCreatedDBObject(s, true);
             }
-            s.Font = new FontDescriptor("Arial", false, false, 0, 0);
+            // L9: Fett als Arial Bold (TrueType, im PDF durchsuchbar); L8: Rollen annotativ, Höhe = Papierhöhe.
+            var fett = Stammwerte.JaNein(w.GetValueOrDefault("Fett"));
+            var annotativ = Stammwerte.JaNein(w.GetValueOrDefault("Annotativ"));
+            s.FileName = "";
+            s.Font = new FontDescriptor("Arial", fett, false, 0, 0);
             s.TextSize = Stammwerte.Zahl(w["Hoehe_mm"]);
             s.XScale = w.TryGetValue("Breitenfaktor", out var bf) && bf.Length > 0 ? Stammwerte.Zahl(bf) : 1.0;
+            s.Annotative = annotativ ? AnnotativeStates.True : AnnotativeStates.False;
             Id(s, w["ID"]);
             eigene.Add(w["Name"]);
-            aus.Add($"AVTERZEUGEN Textstil | {w["Name"]} | Arial {s.TextSize} mm");
+            aus.Add($"AVTERZEUGEN Textstil | {w["Name"]} | Arial{(fett ? " Bold" : "")} {s.TextSize} mm{(annotativ ? " annotativ" : "")}");
         }
         // Jeder andere Textstil (aus der Leervorlage) wird Arial – Texte sollen im PDF durchsuchbar sein.
         foreach (ObjectId id in tabelle)
@@ -269,6 +274,7 @@ internal static class Erzeuger
                 Key = k, LayerName = layer, Color = Farbwert(Farbe.Lies(w["Farbe"])), Linetype = linientyp,
                 Lineweight = (LineWeight)Stammwerte.Linienstaerke(w["Linienstaerke"]),
             });
+            Systemlayer(db, tr, layer, w, "LA-S-" + k);
             Aecb.SchematicSystemDefinition s;
             if (systeme.Has(w["Benennung"], tr)) s = (Aecb.SchematicSystemDefinition)tr.GetObject(systeme.GetAt(w["Benennung"]), OpenMode.ForWrite);
             else
@@ -287,6 +293,23 @@ internal static class Erzeuger
         Id(stil, "LKS-" + LayerSchluesselstil);
         aus.Add($"AVTERZEUGEN Systeme | {t.Zeilen.Count} | Layer-Schlüsselstil {LayerSchluesselstil} mit {stil.KeyDefinitions.Count} Schlüsseln");
         return aus;
+    }
+
+    /// <summary>L7 (Nutzer 24.10.2026): je System ein Layer EHS_S_&lt;Kürzel&gt; mit den Werten aus dem Thema Medien – in der Vorlage angelegt, nicht erst beim Zeichnen.</summary>
+    static void Systemlayer(Database db, Transaction tr, string name, IReadOnlyDictionary<string, string> w, string id)
+    {
+        var tab = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForWrite);
+        var l = tab.Has(name) ? (LayerTableRecord)tr.GetObject(tab[name], OpenMode.ForWrite) : null;
+        if (l == null)
+        {
+            l = new LayerTableRecord { Name = name };
+            tab.Add(l); tr.AddNewlyCreatedDBObject(l, true);
+        }
+        l.Color = Farbwert(Farbe.Lies(w["Farbe"]));
+        l.LinetypeObjectId = LinientypId(db, tr, w["Linientyp"]);
+        l.LineWeight = (LineWeight)Stammwerte.Linienstaerke(w["Linienstaerke"]);
+        l.Description = w["Benennung"];
+        Id(l, id);
     }
 
     /// <summary>Systeme.csv aus dem Schema-Ordner (Eigentümer AMK): Kuerzel, Benennung, Gruppe, Farbe, Linientyp, Linienstaerke.</summary>
