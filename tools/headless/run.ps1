@@ -1,4 +1,4 @@
-param(
+﻿param(
     [Parameter(Mandatory)] [string] $Zeichnung,
     [Parameter(Mandatory)] [AllowEmptyString()] [string[]] $Befehle,
     [int] $TimeoutSek = 900
@@ -29,6 +29,10 @@ function Starte([string[]] $zeilen, [string] $skript, [string] $protokoll, [int]
     return $false
 }
 
+# Antworten nur global (_Y/_N): „_J“ versteht die deutsche Konsole nicht und fragt endlos „Ja oder Nein, bitte.“
+# (Befund 24.10.2026: AUDIT _J lief ~10 min mit voller Last, bis der Prozess beendet wurde).
+$falsch = @($Befehle | Where-Object { $_ -match '^_?[JjNn][Aa]?$' -and $_ -notin @('_N', '_n') })
+if ($falsch.Count -gt 0) { throw "Antwort $($falsch -join ', ') - nur _Y oder _N verwenden" }
 $zeilen = @('(setvar "FILEDIA" 0)', '(setvar "SECURELOAD" 0)') + $Befehle + $zuruecksetzen + @('_QUIT _Y')
 if (-not (Starte $zeilen $scr $log $TimeoutSek)) {
     'TIMEOUT - setze FILEDIA/SECURELOAD in eigenem Lauf auf 1 zurueck'

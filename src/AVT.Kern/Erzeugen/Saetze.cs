@@ -178,7 +178,19 @@ internal static class Saetze
             case "Liste":
                 p.DataType = Autodesk.Aec.PropertyData.DataType.List;
                 p.ListDefinitionId = listen[f.Liste];
-                if (f.Vorgabe.Length > 0) p.DefaultData = f.Vorgabe;
+                // Leere Vorgabe als „nicht angegeben“ – sonst zeigt die Vorgabe auf kein Listenelement und AUDIT meldet
+                // „Eigenschaftssatzdefinition (Liste) eNullObjectId“ (Befund 24.10.2026, ebenso in der DACH-Leervorlage).
+                // Vorgabe einer Liste = ID des Listenelements, nicht der Text: mit Text bleibt der Verweis leer und AUDIT meldet
+                // „Eigenschaftssatzdefinition (Liste) eNullObjectId“ je Satz mit Listen-Vorgabe (Befund 24.10.2026).
+                if (f.Vorgabe.Length > 0)
+                {
+                    using var tr2 = d.Database.TransactionManager.StartOpenCloseTransaction();
+                    var liste = (AecDb.ListDefinition)tr2.GetObject(listen[f.Liste], OpenMode.ForRead);
+                    var element = liste.GetListItem(f.Vorgabe);
+                    if (element.IsNull) throw new InvalidDataException($"{f.Satz}.{f.Feld}: Vorgabe „{f.Vorgabe}“ nicht in Liste {f.Liste}");
+                    p.DefaultData = element;
+                }
+                else p.DefaultIsUnspecified = true;
                 break;
             case "JaNein":
                 p.DataType = Autodesk.Aec.PropertyData.DataType.TrueFalse;

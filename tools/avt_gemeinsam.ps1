@@ -22,7 +22,7 @@ function P([string] $pfad) { $pfad -replace '\\', '/' }
 # Kopie der Zeichnung in <ordner>\arbeit.dwg, Befehle headless ausfuehren, Konsole nach konsole.txt.
 # $ausgaben: Dateien, die der Lauf neu schreibt - vorher geloescht, damit nie ein altes Ergebnis als neues gilt (Review).
 # Bricht ab bei Zeitueberschreitung, fehlgeschlagenem /isolate oder abgelehntem Befehl.
-function Lauf([string] $ordner, [string] $dwg, [string] $dll, [string[]] $befehle, [string[]] $ausgaben = @()) {
+function Lauf([string] $ordner, [string] $dwg, [string] $dll, [string[]] $befehle, [string[]] $ausgaben = @(), [int] $TimeoutSek = 600) {
     if (-not (Test-Path $dwg)) { throw "Zeichnung fehlt: $dwg" }
     New-Item -ItemType Directory -Force $ordner | Out-Null
     foreach ($a in $ausgaben) { if (Test-Path $a) { Remove-Item $a -Force } }
@@ -30,7 +30,7 @@ function Lauf([string] $ordner, [string] $dwg, [string] $dll, [string[]] $befehl
     Copy-Item $dwg $kopie -Force
     (Get-Item $kopie).IsReadOnly = $false
     $konsole = Join-Path $ordner 'konsole.txt'
-    & (Join-Path $PSScriptRoot 'headless\run.ps1') -Zeichnung $kopie -Befehle (@("_NETLOAD $dll") + $befehle) | Out-File -Encoding utf8 $konsole
+    & (Join-Path $PSScriptRoot 'headless\run.ps1') -Zeichnung $kopie -TimeoutSek $TimeoutSek -Befehle (@("_NETLOAD $dll") + $befehle) | Out-File -Encoding utf8 $konsole
     $text = Get-Content $konsole -Raw
     if ($text -match 'TIMEOUT|ACHTUNG|AVT abgelehnt') { throw "Lauf in $ordner nicht sauber (siehe $konsole)" }
 }
