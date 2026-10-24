@@ -35,6 +35,8 @@ Add-Type -Namespace AvtTest -Name Eingabe -MemberDefinition @'
 public static uint Letzte() { var i = new LASTINPUTINFO(); i.cbSize = (uint)Marshal.SizeOf(i); GetLastInputInfo(ref i); return i.dwTime; }
 [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr h, out RECT r);
 [DllImport("user32.dll")] static extern bool PrintWindow(IntPtr h, IntPtr dc, uint f);
+[DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr h, uint m, IntPtr w, IntPtr l);
+public static IntPtr Klick(IntPtr knopf) { return SendMessage(knopf, 0x00F5, IntPtr.Zero, IntPtr.Zero); }   // BM_CLICK, keine echte Eingabe
 public struct RECT { public int L, T, R, B; }
 public static void Foto(IntPtr h, string pfad) {
   RECT r; GetWindowRect(h, out r);
@@ -50,7 +52,28 @@ $script:eingabeStart = $null
 $script:eigene = [System.Collections.Generic.List[object]]::new()   # eigene offene Testkopien (COM-Dokumente)
 $script:ergebnisDatei = $null
 
+# Knopf in einem Win32-Dialog (MessageBox): UI Automation meldet Ja/Nein als "Pane" ohne Invoke (Befund 24.10. 17:26) -
+# darum nach Namen suchen und per BM_CLICK an den Fenstergriff druecken.
+function DialogKnopf($dialog, [string[]] $namen) {
+    foreach ($n in $namen) {
+        $k = $dialog.FindFirst([Windows.Automation.TreeScope]::Descendants, (New-Object Windows.Automation.PropertyCondition([Windows.Automation.AutomationElement]::NameProperty, $n)))
+        if ($k -and $k.Current.NativeWindowHandle -ne 0) { [void][AvtTest.Eingabe]::Klick([IntPtr]$k.Current.NativeWindowHandle); return $true }
+    }
+    $false
+}
+# Bei jedem Ende: eine noch offene eigene Rueckfrage mit "Nein" schliessen (nichts wird geaendert), erst dann Kopien schliessen.
+function OffeneRueckfrageSchliessen {
+    try {
+        foreach ($w in Fenster) {
+            foreach ($n in 'AVT – Bereinigen', 'AVT - Bereinigen') {
+                $d = $w.FindFirst([Windows.Automation.TreeScope]::Element -bor [Windows.Automation.TreeScope]::Children, (New-Object Windows.Automation.PropertyCondition([Windows.Automation.AutomationElement]::NameProperty, $n)))
+                if ($d -and (DialogKnopf $d @('Nein', 'No'))) { Notiere 'Offene Rueckfrage "AVT – Bereinigen" mit Nein geschlossen (nichts geaendert).' | Out-Null; Start-Sleep 1 }
+            }
+        }
+    } catch { }
+}
 function Schluss([int] $code) {
+    OffeneRueckfrageSchliessen
     foreach ($d in $script:eigene) { try { $d.Close($false) } catch { } }
     if ($script:eigene.Count -gt 0) { Notiere "Eigene Testkopien ohne Speichern geschlossen ($($script:eigene.Count))." | Out-Null }
     if ($script:ergebnisDatei) { $ergebnis | Set-Content $script:ergebnisDatei -Encoding UTF8 }
@@ -76,7 +99,8 @@ function Finde([string] $name, $wurzel = $null, [Windows.Automation.ControlType]
     $c = New-Object Windows.Automation.PropertyCondition($A::NameProperty, $name)
     if ($typ) { $c = New-Object Windows.Automation.AndCondition($c, (New-Object Windows.Automation.PropertyCondition($A::ControlTypeProperty, $typ))) }
     $orte = if ($wurzel) { @($wurzel) } else { Fenster }
-    foreach ($w in $orte) { $e = $w.FindFirst($Baum::Descendants, $c); if ($e) { return $e } }
+    # Element = Fenster selbst (z. B. Rueckfrage als eigenes Hauptfenster, Befund 24.10. 17:29) oder darin.
+    foreach ($w in $orte) { $e = $w.FindFirst($Baum::Element -bor $Baum::Descendants, $c); if ($e) { return $e } }
     $null
 }
 function Druecke($element) { $element.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke() }
@@ -97,6 +121,23 @@ function KeinDialog([string] $wo) {
     if ($d) { Notiere "ABGEBROCHEN bei ${wo}: fremder Dialog offen ($d) - wird nicht beantwortet." | Out-Null; Foto "dialog_$wo" | Out-Null; Schluss 3 }
 }
 function Foto([string] $name) { $p = Join-Path $script:lauf "$name.png"; try { [AvtTest.Eingabe]::Foto([IntPtr]$script:haupt, $p) } catch { }; $p }
+# Ganzer Bildschirm (schwebende Palette ist ein eigenes Fenster und fehlt auf dem Foto des Hauptfensters).
+function Schirmfoto([string] $name) {
+    $p = Join-Path $script:lauf "$name.png"
+    try {
+        Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+        $s = [System.Windows.Forms.SystemInformation]::VirtualScreen
+        $b = New-Object System.Drawing.Bitmap $s.Width, $s.Height
+        $g = [System.Drawing.Graphics]::FromImage($b); $g.CopyFromScreen($s.Left, $s.Top, 0, 0, $b.Size); $g.Dispose()
+        $b.Save($p); $b.Dispose()
+    } catch { }
+    $p
+}
+# Pruefsumme auch fuer eine in AutoCAD geoeffnete Datei (Get-FileHash scheitert an der Sperre, Befund 24.10. 17:28).
+function Pruefsumme([string] $datei) {
+    $s = [IO.File]::Open($datei, 'Open', 'Read', 'ReadWrite')
+    try { -join ([Security.Cryptography.SHA256]::Create().ComputeHash($s) | ForEach-Object { $_.ToString('X2') }) } finally { $s.Dispose() }
+}
 function ProtokollZeilen { if (Test-Path $protokoll) { @(Get-Content $protokoll -Encoding UTF8) } else { @() } }
 function WarteAufProtokoll([int] $ab, [string] $muster, [int] $sek = 20) {
     for ($i = 0; $i -lt $sek * 2; $i++) {
@@ -216,35 +257,51 @@ try {
     KeinDialog 'Zahnrad'
 
     # --- 5. Bereinigen an der RI-9.1-Kopie ----------------------------------------------------------------------------
+    # Schwebende Palette mit "Automatisch ausblenden" klappt nach dem Zahnrad-Fenster wieder ein (Befund 24.10. 17:21) -
+    # darum wie ein Nutzer erneut AVTPALETTE (Regel: Befehl klappt aus).
+    $ab = (ProtokollZeilen).Count
+    Befehl $docRi "AVTPALETTE`n"
+    WarteAufProtokoll $ab 'AVTPALETTE: geöffnet' 15 | Out-Null
+    Warte 2
     $knopf = Finde 'Bereinigen …' $null ([Windows.Automation.ControlType]::Button)
     if (-not $knopf) { throw 'Knopf Bereinigen … fehlt' }
     Druecke $knopf
-    Warte 6
+    # Vorschau bis 30 s abwarten (die volle Analyse dauert bei grossen Zeichnungen) - Merkmal: Knopf "Ausgewählte bereinigen …".
+    $los = $null
+    # Ohne Maus ueber der Palette klappt sie sofort wieder ein (Befund 24.10. 17:25, Bild 5a) - vor jedem Nachsehen ausklappen.
+    for ($i = 0; $i -lt 10 -and -not $los; $i++) {
+        Warte 2
+        Befehl $docRi "AVTPALETTE`n"
+        Warte 1
+        $los = Finde 'Ausgewählte bereinigen …' $null ([Windows.Automation.ControlType]::Button)
+    }
     $boxen = @(Fenster | ForEach-Object { $_.FindAll($Baum::Descendants, (New-Object Windows.Automation.PropertyCondition($A::ControlTypeProperty, [Windows.Automation.ControlType]::CheckBox))) })
     $an = @($boxen | Where-Object { $_.GetCurrentPattern([Windows.Automation.TogglePattern]::Pattern).Current.ToggleState -eq 'On' }).Count
-    $gruppen = @('a) Fremd', 'b) Fremd', 'c) Projektinhalt' | ForEach-Object { $g = $_; @(Fenster | ForEach-Object { $_.FindAll($Baum::Descendants, [Windows.Automation.Condition]::TrueCondition) } | Where-Object { $_.Current.Name -like "$g*" }).Count -gt 0 })
-    Notiere ("5a Vorschau: Gruppen a/b/c sichtbar $($gruppen -join '/'), Kontrollkaestchen $($boxen.Count), davon angehakt $an") | Out-Null
-    Notiere "5a Bild: $(Foto '5a_vorschau')" | Out-Null
-    $los = Finde 'Ausgewählte bereinigen …' $null ([Windows.Automation.ControlType]::Button)
+    $alle = @(Fenster | ForEach-Object { $_.FindAll($Baum::Descendants, [Windows.Automation.Condition]::TrueCondition) } | ForEach-Object { $_.Current.Name })
+    $gruppen = @('a) Fremd', 'b) Fremd', 'c) Projektinhalt' | ForEach-Object { $g = $_; @($alle | Where-Object { $_ -like "$g*" }).Count -gt 0 })
+    $berichtText = @($alle | Where-Object { $_ -like 'Vorschau *' -or $_ -like 'Keine Fremdinhalte*' -or $_ -like 'Achtung:*' }) | Select-Object -First 2
+    $k2 = Finde 'Bereinigen …' $null ([Windows.Automation.ControlType]::Button)
+    Notiere ("5a Vorschau: Gruppen a/b/c sichtbar $($gruppen -join '/'), Kontrollkaestchen $($boxen.Count), davon angehakt $an; Palette sichtbar $([bool]($k2 -and -not $k2.Current.IsOffscreen)); Text: $($berichtText -join ' | ')") | Out-Null
+    Notiere "5a Bild (ganzer Schirm): $(Schirmfoto '5a_vorschau')" | Out-Null
     if (-not $los) { throw 'Knopf Ausgewählte bereinigen … fehlt' }
     $ab = (ProtokollZeilen).Count
     Druecke $los
-    Warte 2
-    # Eigene Rueckfrage "AVT – Bereinigen" mit Ja beantworten - nur dieser Dialog, jeder andere fuehrt zum Abbruch.
+    # Eigene Rueckfrage "AVT – Bereinigen" mit Ja beantworten - nur dieser Dialog, jeder andere fuehrt zum Abbruch. Bis 10 s warten.
     $frage = $null
-    foreach ($n in 'AVT – Bereinigen', 'AVT - Bereinigen') { if (-not $frage) { $frage = Finde $n $null ([Windows.Automation.ControlType]::Window) } }
+    for ($i = 0; $i -lt 10 -and -not $frage; $i++) {
+        Warte 1
+        foreach ($n in 'AVT – Bereinigen', 'AVT - Bereinigen') { if (-not $frage) { $frage = Finde $n $null ([Windows.Automation.ControlType]::Window) } }
+    }
     if ($frage) {
         Notiere "5b Rueckfrage AVT erschienen: $((@($frage.FindAll($Baum::Descendants, (New-Object Windows.Automation.PropertyCondition($A::ControlTypeProperty, [Windows.Automation.ControlType]::Text))) | ForEach-Object { $_.Current.Name }) -join ' ') -replace '\s+', ' ')" | Out-Null
         Notiere "5b Bild: $(Foto '5b_rueckfrage')" | Out-Null
-        $ja = Finde 'Ja' $frage ([Windows.Automation.ControlType]::Button)
-        if (-not $ja) { $ja = Finde 'Yes' $frage ([Windows.Automation.ControlType]::Button) }
-        Druecke $ja
+        if (-not (DialogKnopf $frage @('Ja', 'Yes'))) { throw 'Knopf Ja in der Rueckfrage nicht gefunden' }
         $fertig = WarteAufProtokoll $ab '\[Bereinigen\]' 60
         Warte 2
         KeinDialog 'Bereinigen'
         $sicherung = @(Get-ChildItem $script:lauf -Filter 'avt_mep_ri91_vor-Bereinigen_*.dwg')
         $hashSicherung = if ($sicherung.Count -gt 0) { (Get-FileHash $sicherung[0].FullName -Algorithm SHA256).Hash } else { '' }
-        $hashNachher = (Get-FileHash $ri -Algorithm SHA256).Hash
+        $hashNachher = Pruefsumme $ri   # Datei ist noch in AutoCAD offen - mit geteiltem Lesen
         $dbmod = Com { $docRi.GetVariable('DBMOD') }
         Notiere ("5c Sicherungskopie: " + $(if ($sicherung.Count -eq 1 -and $hashSicherung -eq $hashVorher) { "OK - $($sicherung[0].Name), Pruefsumme = Original" } else { "FEHLER - $($sicherung.Count) Datei(en)" })) | Out-Null
         Notiere ("5d Bericht: " + $(if ($fertig -match 'Ergebnis \| entfernt') { "OK - $($fertig.Substring(0, [Math]::Min(400, $fertig.Length)))" } elseif ($fertig) { "pruefen - $($fertig.Substring(0, [Math]::Min(400, $fertig.Length)))" } else { 'FEHLER - kein Eintrag' })) | Out-Null
