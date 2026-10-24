@@ -43,6 +43,11 @@ internal static class Erzeuger
             Stempel(db, tr, auftrag);
             tr.Commit();
         }
+        using (var tr = db.TransactionManager.StartTransaction())
+        {
+            aus.AddRange(Saetze.Bauen(db, tr, stammdaten, Id));
+            tr.Commit();
+        }
         return aus;
     }
 
