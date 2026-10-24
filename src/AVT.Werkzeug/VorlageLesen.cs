@@ -34,6 +34,7 @@ public sealed class VorlageLesen
             catch (System.Exception ex) { tr.Abort(); aus.Add($"FEHLER {was} | {ex.GetBaseException().GetType().Name}: {ex.GetBaseException().Message}"); }
         }
         Teil("Layouts", tr => Layouts(db, tr, aus));
+        Teil("Layer", tr => Layer(db, tr, aus));
         Teil("Saetze", tr => Saetze(db, tr, aus));
         Teil("Listen", tr => Listen(db, tr, aus));
         Teil("Themen", tr => Themen(db, tr, aus));
@@ -142,6 +143,15 @@ public sealed class VorlageLesen
         }
         var layer = btr.Cast<ObjectId>().Select(k => ((Entity)tr.GetObject(k, OpenMode.ForRead)).Layer).Distinct().OrderBy(x => x, StringComparer.Ordinal);
         aus.Add($"BLOCK | {wo} | {btr.Name} | {string.Join(", ", arten.OrderBy(a => a.Key).Select(a => $"{a.Value} {a.Key}"))} | Layer {string.Join(", ", layer)} | Einfügepunkt {Pt(btr.Origin)} | dynamisch {btr.IsDynamicBlock}");
+    }
+
+    static void Layer(Database db, Transaction tr, List<string> aus)
+    {
+        foreach (ObjectId id in (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForRead))
+        {
+            var l = (LayerTableRecord)tr.GetObject(id, OpenMode.ForRead);
+            aus.Add($"LAYER | {l.Name} | Farbe {l.Color} | Linientyp {((SymbolTableRecord)tr.GetObject(l.LinetypeObjectId, OpenMode.ForRead)).Name} | Linienstärke {l.LineWeight} | plotten {l.IsPlottable} | Beschreibung {l.Description}");
+        }
     }
 
     static void Saetze(Database db, Transaction tr, List<string> aus)

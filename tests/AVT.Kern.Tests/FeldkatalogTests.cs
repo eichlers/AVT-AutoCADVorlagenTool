@@ -57,6 +57,21 @@ public class FeldkatalogTests
     public void Objektklasse_zum_Stil(string klasse, string soll) => Assert.Equal(soll, Feldkatalog.Objektklasse(klasse));
 
     [Fact]
+    public void Ansichtsfenster_werden_gelesen()
+    {
+        var f = Fenster.Lies("50.1,22.756,956.466,812.726,1:50 | 1066.518,286.683,1184,836,1:50");
+        Assert.Equal(2, f.Count);
+        Assert.Equal(0.02, f[0].Massstab, 9);
+        Assert.Equal(1184, f[1].X2);
+    }
+
+    [Theory]
+    [InlineData("1,2,3,4")]
+    [InlineData("5,5,1,1,1:50")]
+    [InlineData("1,1,5,5,50")]
+    public void Ansichtsfenster_ungueltig(string text) => Assert.Throws<FormatException>(() => Fenster.Lies(text));
+
+    [Fact]
     public void Vorschlag_der_Stammdaten_ist_gueltig()
     {
         const string ordner = @"C:\Temp\AVT\Stammdaten_Vorschlag";
