@@ -1,6 +1,6 @@
 # AVT – Vorlagen-Tool · Handbuch
 
-© S. Eichler · Eichler-GmbH · für AutoCAD MEP 2026 · Stand: AVT 0.4.0 Entwurf (23.10.2026)
+© S. Eichler · Eichler-GmbH · für AutoCAD MEP 2026 · Stand: AVT 0.4.0 Entwurf (24.10.2026)
 
 AVT pflegt den Eichler-Hausstandard (EHS), die gemeinsame Zeichnungsvorlage für ATT, ADM, ANA und ASG. AVT erzeugt die
 Vorlage aus den Stammdaten, prüft Zeichnungen gegen ihre Fassung, bereitet freigegebene Fassungen für die Verteilung
@@ -196,8 +196,9 @@ Enabler laden nicht mehr, das Ergebnis bleibt sauber.
 
 ## 6. Vorlage erzeugen (Entwurf)
 
-AVT baut die Vorlage aus den Stammdaten auf einer Kopie der unveränderten Autodesk-Leervorlage. Heute (0.4.0, Teil 1)
-entsteht nur ein **Entwurf** `1.0.0-e<n>` in `C:\Temp\AVT\Erzeugen` – nichts davon ist freigegeben oder im EHS-Ordner.
+AVT baut die Vorlage aus den Stammdaten auf einer Kopie der unveränderten Autodesk-Leervorlage. Heute (0.4.0) entsteht
+nur ein **Entwurf** `1.0.0-e<n>` unter `C:\Temp\AVT` – nichts davon ist freigegeben oder im EHS-Ordner. Stand 24.10.2026:
+Entwurf **1.0.0-e3**, dreimal gleich gebaut, AUDIT ohne Fehler, Prüfung gegen die Stammdaten ohne Fehler.
 
 | Schritt | Quelle | Was entsteht |
 |---|---|---|
@@ -207,16 +208,24 @@ entsteht nur ein **Entwurf** `1.0.0-e<n>` in `C:\Temp\AVT\Erzeugen` – nichts d
 | Layer | `Layer.csv` | Farbe, Linientyp, Linienstärke, Plotten |
 | Systeme | `Systeme.csv` | je System ein Schemasystem (Kürzel, Gruppe) und ein Schlüssel im Layer-Schlüsselstil `EHS` mit Farbe, Linientyp, Linienstärke aus dem Thema „Medien“ |
 | Feste IDs | Tabellenspalte `ID` | XData unter der RegApp `EHS` (z. B. `ID:TS-025`, `ID:SYS-ETA`) |
+| Textstile (L8, L9) | `Textstile.csv` | Rollen `EHS_Text_18/25/35/50` beschriftungsabhängig (Höhe = Papierhöhe), `EHS_Text_Fett` mit Arial Bold |
+| Systemlayer (L7) | `Systeme.csv` | je System ein Layer `EHS_S_<Kürzel>` mit den Werten aus dem Thema „Medien“ |
+| Wertelisten | `Wertelisten.csv` | Listen `EHS_Taggen`, `EHS_Bauteilart`, `EHS_Status`, `EHS_Betrieb`, `EHS_BMKArt`, `EHS_Armaturart` |
+| Eigenschaftssätze | `Saetze.csv`, `Feldkatalog.csv` | `EHS_Bauteil`, `EHS_Stil`, `EHS_Leitungsstil`, `EHS_BMK`, `EHS_Filter`, `EHS_Raum` – Felder mit Typ, Einheit, Liste, Vorgabe; automatische Felder (Stil, Stilbeschreibung, System) und Formeln |
+| Bausteine | `Bausteine.csv` + `Bausteine\*.dwg` | Inhalt, den die Programmierschnittstelle nicht erzeugen kann: Rahmen-Block `EHS_Rahmen` (45 Formate), Themen-Komponente mit Darstellung; Prüfsumme je Datei |
+| Anzeigethemen | `Themen.csv` | Medien, Stoffgruppen, RohrKanalKlassen – je Zeile eine Komponente mit Regel (z. B. `EHS_Leitungsstil.Kuerzel = PWW-VL`), Farbe, Linientyp, Linienstärke |
+| Layout | `Layouts.csv` | Layout „Vorlage“: Plotter, Papier, Plotbereich, Rahmen mit Format, Ansichtsfenster; die Fläche für den Plankopf bleibt frei |
 | Fassung | Aufruf | Fassungsstempel `EHS_Zeichnung` und alle DWGPROPS-Pflichtfelder, darunter `EHS_Inhaltspruefsumme` |
 
 Danach öffnet AVT den Entwurf neu und prüft ihn gegen die Stammdaten (jede Tabellenzeile Soll/Ist, alle Textstile Arial,
 keine Systeme außerhalb der Stammdaten, feste IDs, Pflichtfelder, Inhaltsprüfsumme = DWGPROPS) und mit AUDIT.
 
 ```
-powershell -File tools\AVT_erzeugen.ps1 [-Fassung 1.0.0-e1] [-Basis <dwt>] [-Zweimal]
+powershell -File tools\AVT_erzeugen.ps1 [-Stammdaten <Ordner>] [-Fassung 1.0.0-e3] [-Basis <dwt>] [-Laeufe 3]
 ```
 
-`-Zweimal` baut ein zweites Mal unabhängig: Gleiche Stammdaten ergeben die gleiche Inhaltsprüfsumme. Die Angaben ohne
+`-Laeufe n` baut n-mal unabhängig: Gleiche Stammdaten ergeben die gleiche Inhaltsprüfsumme. Nach jedem Bau läuft AUDIT
+zweimal – nach der Prüfung und allein am fertigen Ergebnis, so wie ein Anwender die Vorlage öffnet. Die Angaben ohne
 Datum (Fassung, Vorgänger, Git-Stand der Stammdaten, Prüfsumme der Leervorlage, AVT-Version) stehen im Fassungsstempel.
 
 ---
@@ -321,6 +330,10 @@ Zeichnung ist kein Ergebnis für die Praxis.
 | `AVTLINEXPORT` | Linientyp-Definitionen einer Zeichnung als .lin schreiben (z. B. für die Stammdaten) |
 | `AVTSONDE` | API-Sonde: Beispiele je Objektart anlegen und als neue Datei speichern |
 | `AVTSONDELESEN` | Beispiele der Sonde zurücklesen (nur lesen) |
+| `AVTVORLAGELESEN` | Layouts, Rahmenformate, Layer, Sätze, Listen und Themen einer Vorlage auflisten (nur lesen) |
+| `AVTBAUSTEIN` | Block aus einer Vorlage als Baustein in eine neue Zeichnung kopieren und umbenennen |
+| `AVTTHEMENBAUSTEIN` | Themen-Baustein (eine Komponente mit Darstellung, Regel auf `EHS_Leitungsstil`) anlegen |
+| `AVTTHEMENPROBE`, `AVTLISTENPROBE` | Proben zu Themen und Listen (speichern nichts bzw. nur als neue Datei) |
 
 ---
 
@@ -364,7 +377,9 @@ dann meldet AVT sie in dieser Zeichnung nicht mehr.
   und das Schließen ohne Speichern.
 - Die Inhaltsprüfsumme übergeht den Inhalt räumlicher Indizes und der DACH-Sanierungsstile (siehe Kapitel 7).
 - AUDIT meldet bei der Autodesk-Leervorlage „Aecb Model (D A CH Ctb) mm“ schon im Auslieferungszustand 2 Fehler
-  (Listen-Definition „Standard“); diese stammen nicht von AVT.
+  („Eigenschaftssatzdefinition (Liste) eNullObjectId“). Ursache ist ein Listenfeld ohne Vorgabe (`MEPInterference.Status`);
+  es entfällt beim Erzeugen. Darum hat in den Stammdaten jedes Listenfeld eine Vorgabe – die Prüfung des Feldkatalogs lehnt
+  ein Listenfeld ohne Vorgabe ab.
 - Namenlose und anonyme Einträge zählen im Inhaltsauszug nach ihrer Reihenfolge in der Zeichnung. Gleich gebaute
   Zeichnungen vergleicht AVT sicher; wurde gleicher Inhalt in anderer Reihenfolge gebaut oder fällt ein Eintrag weg,
   erscheinen die folgenden als „geändert“. Ab dem Erzeugen (0.4.0) ordnet AVT sie nach Inhalt.
@@ -376,6 +391,7 @@ dann meldet AVT sie in dieser Zeichnung nicht mehr.
 | Version | Datum | Inhalt |
 |---|---|---|
 | 0.3.1 | 23.10.2026 | Palette im gemeinsamen Farbschema aller Module (wie ATT): folgt dem AutoCAD-Farbschema hell/dunkel, auch beim Umschalten; Zahnrad ebenso |
+| 0.4.0 (Entwurf) | 24.10.2026 | Erzeugen Teil 2: Entwurf 1.0.0-e3 – Eigenschaftssätze nach dem Feldkatalog (F1–F10), Wertelisten, Anzeigethemen Medien/Stoffgruppen/RohrKanalKlassen, Rahmen mit 45 Formaten und Layout „Vorlage“, Systemlayer, annotative Textstile, Fett-Stil; 3 Läufe gleich, AUDIT ohne Fehler |
 | 0.4.0 (Entwurf) | 23.10.2026 | Erzeugen Teil 1: Entwurf 1.0.0-e1 aus Stammdaten (Textstile Arial, Linientypen, Layer, 99 Systeme mit Layer-Schlüsseln, IDs, Fassungsstempel, DWGPROPS), Prüfen gegen die Stammdaten, reproduzierbar belegt |
 | 0.3.0 | 23.10.2026 | Plugin mit Palette und Werkzeugkasten-Knopf (Anthrazit); Prüfen in der Palette; Bereinigen der offenen Zeichnung mit Vorschau a/b/c, Sicherungskopie, Nachprüfung; leiser Hinweis beim Öffnen; gemeinsame Logik in AVT.Kern; Unit-Tests |
 | 0.2.0 | 23.10.2026 | Inhaltsauszug mit Inhaltsprüfsumme (`AVTKANON`), Prüfen gegen eine Fassung, API-Sonde, DWGPROPS lesen, Kürzel des Standards an einer Stelle, Berichtszeilen mit Präfix „AVT“ |
