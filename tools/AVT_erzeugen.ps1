@@ -1,4 +1,4 @@
-param(
+﻿param(
     # Autodesk-Leervorlage (nur gelesen). Vorschlag DACH mm - Freigabe B1 beim Nutzer.
     [string] $Basis = 'C:\ProgramData\Autodesk\MEP 2026\deu\Template\Aecb Model (D A CH Ctb) mm.dwt',
     [string] $Arbeit = 'C:\Temp\AVT\Erzeugen',
@@ -41,8 +41,11 @@ function Bau([string] $ordner) {
     Lauf (Join-Path $ordner 'lauf2') $ziel $dll @('AVTKANON', (P $kanon), '-', 'AVTSTAMMPRUEFEN', (P $stamm), $Stammdaten, $Systeme, '_AUDIT', '_N') @($kanon, $stamm)
     PruefeEnde $kanon 'AVTENDE ok'; PruefeEnde $stamm 'AVTENDE ok'
     $gesamt = ((Zeilen $kanon | Where-Object { $_ -like 'AVTKANON Gesamt |*' }) -replace '^AVTKANON Gesamt \| ', '')
+    # Reiner AUDIT-Lauf am fertigen Ergebnis (vorher nichts gelesen) - so, wie ein Nutzer die Vorlage oeffnet.
+    Lauf (Join-Path $ordner 'lauf3') $ziel $dll @('_AUDIT', '_N') @()
     [pscustomobject]@{ Ordner = $ordner; Ziel = $ziel; Gesamt = $gesamt
-        Audit = ((Get-Content (Join-Path $ordner 'lauf2\konsole.txt') | Where-Object { $_ -match 'Fehler gefunden' }) -join ' ') }
+        Audit = ((Get-Content (Join-Path $ordner 'lauf2\konsole.txt') | Where-Object { $_ -match 'Fehler gefunden' }) -join ' ')
+        AuditAllein = ((Get-Content (Join-Path $ordner 'lauf3\konsole.txt') | Where-Object { $_ -match 'Fehler gefunden' }) -join ' ') }
 }
 
 "Basis: $basisText | Stammdaten: $stand | AVT $avt | Fassung $Fassung"
@@ -51,9 +54,12 @@ Zeilen (Join-Path $b1.Ordner 'erzeugen.txt') | Where-Object { $_ -match '^AVTERZ
 Zeilen (Join-Path $b1.Ordner 'abschliessen.txt') | Where-Object { $_ -match '^AVTERZEUGEN' }
 Zeilen (Join-Path $b1.Ordner 'erzeugen.txt') | Where-Object { $_ -match '^AVTERZEUGEN Textstil der Basis' } | Select-Object -First 8
 Zeilen (Join-Path $b1.Ordner 'stammpruefung.txt') | Where-Object { $_ -match '^AVTSTAMM (FEHLER|OK|Ergebnis)' } | Select-Object -First 25
-"Inhaltspruefsumme Bau 1: $($b1.Gesamt) | AUDIT: $($b1.Audit)"
-if ($Zweimal) {
-    $b2 = Bau (Join-Path $Arbeit 'bau2')
-    "Inhaltspruefsumme Bau 2: $($b2.Gesamt) | AUDIT: $($b2.Audit)"
-    "Gleiche Stammdaten -> gleiche Vorlage: $(if ($b1.Gesamt -eq $b2.Gesamt) { 'JA' } else { 'NEIN - Unterschied siehe kanon.txt' })"
+"Inhaltspruefsumme Bau 1: $($b1.Gesamt) | AUDIT nach Pruefen: $($b1.Audit) | AUDIT allein: $($b1.AuditAllein)"
+if ($Zweimal -and $Laeufe -lt 2) { $Laeufe = 2 }
+$alle = @($b1)
+for ($n = 2; $n -le $Laeufe; $n++) {
+    $b = Bau (Join-Path $Arbeit "bau$n")
+    "Inhaltspruefsumme Bau ${n}: $($b.Gesamt) | AUDIT nach Pruefen: $($b.Audit) | AUDIT allein: $($b.AuditAllein)"
+    $alle += $b
 }
+if ($Laeufe -gt 1) { "Gleiche Stammdaten -> gleiche Vorlage ($Laeufe Laeufe): $(if (@($alle.Gesamt | Sort-Object -Unique).Count -eq 1) { 'JA' } else { 'NEIN - Unterschied siehe kanon.txt' })" }
