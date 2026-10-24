@@ -46,8 +46,12 @@ internal static class Layouts
             using (var tr = db.TransactionManager.StartTransaction())
             {
                 var dict = (DBDictionary)tr.GetObject(db.LayoutDictionaryId, OpenMode.ForRead);
-                weg = dict.Cast<DBDictionaryEntry>().Select(e => (Layout)tr.GetObject(e.Value, OpenMode.ForRead))
-                    .Where(l => !l.ModelType && !soll.Contains(l.LayoutName)).Select(l => l.LayoutName).ToList();
+                weg = [];
+                foreach (DBDictionaryEntry e in dict)
+                {
+                    var l = (Layout)tr.GetObject(e.Value, OpenMode.ForRead);
+                    if (!l.ModelType && !soll.Contains(l.LayoutName)) weg.Add(l.LayoutName);
+                }
                 tr.Commit();
             }
             foreach (var n in weg)
@@ -134,6 +138,18 @@ internal static class Layouts
                 ?? throw new InvalidDataException($"Layouts.csv: Format „{w["Rahmenformat"]}“ gibt es im Rahmen nicht");
             format.Value = w["Rahmenformat"];
             aus.Add($"AVTERZEUGEN Layout | {name} | {w["Plotter"]} {w["Papier"]} {w["Drehung"]}° {w["Plotbereich"]} | Rahmen {w["Rahmenblock"]} {format.PropertyName} = {w["Rahmenformat"]}");
+
+            // Papierbereichs-Ansichtsfenster (das erste im Layout) über das ganze Blatt auf Layer 0 – wie RI 9.1; sonst wird das
+            // erste eigene Fenster dazu und AUDIT meldet „Paperspace vport layer Not 0“ (Befund 24.10.2026).
+            var blatt = rahmen.GeometricExtents;
+            var papier = new Viewport();
+            papier.SetDatabaseDefaults(db);
+            papier.Layer = "0";
+            papier.CenterPoint = new Point3d((blatt.MinPoint.X + blatt.MaxPoint.X) / 2, (blatt.MinPoint.Y + blatt.MaxPoint.Y) / 2, 0);
+            papier.Width = blatt.MaxPoint.X - blatt.MinPoint.X;
+            papier.Height = blatt.MaxPoint.Y - blatt.MinPoint.Y;
+            raum.AppendEntity(papier);
+            tr.AddNewlyCreatedDBObject(papier, true);
 
             var nr = 0;
             foreach (var f in Fenster.Lies(w.GetValueOrDefault("Ansichtsfenster") ?? ""))

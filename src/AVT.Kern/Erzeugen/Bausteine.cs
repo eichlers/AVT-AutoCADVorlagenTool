@@ -11,8 +11,12 @@ namespace Avt.Kern.Erzeugen;
 /// </summary>
 internal static class Bausteine
 {
+    /// <summary>Satzkopien, die ein Themen-Baustein mitbrachte – nach Themen.Bauen zu entfernen.</summary>
+    internal static readonly List<string> Mitgebracht = [];
+
     public static List<string> Bauen(Database db, string stammdaten, Action<DBObject, string> id)
     {
+        Mitgebracht.Clear();
         var aus = new List<string>();
         foreach (var (_, w) in Tabelle.Lies(Path.Combine(stammdaten, "Bausteine.csv"), "ID", "Art", "Name", "Datei", "SHA256").Zeilen)
             aus.Add(w["Art"] switch
@@ -56,9 +60,27 @@ internal static class Bausteine
         var vorher = Satznamen(db);
         var ziel = new AecDb.DictionaryDisplayThemeStyle(db).DictionaryId;
         bs.WblockCloneObjects(new ObjectIdCollection { quelle }, ziel, new IdMapping(), DuplicateRecordCloning.Ignore, false);
+        // AutoCAD legt den gleichnamigen Satz trotz „Ignorieren“ als „<Name> (2)“ an (Befund 24.10.2026). Erlaubt ist nur diese
+        // Kopie des Leitungsstilsatzes; Themen.Bauen hängt alle Regeln auf den Satz der Vorlage um, danach wird sie entfernt.
         var neu = Satznamen(db).Except(vorher).ToList();
-        if (neu.Count > 0) throw new InvalidDataException($"Baustein {w["Datei"]} brachte Satzdefinitionen mit: {string.Join(", ", neu)}");
+        var fremd = neu.Where(n => !n.StartsWith(Erzeugen.Themen.Leitungsstilsatz, StringComparison.Ordinal)).ToList();
+        if (fremd.Count > 0) throw new InvalidDataException($"Baustein {w["Datei"]} brachte Satzdefinitionen mit: {string.Join(", ", fremd)}");
+        Mitgebracht.AddRange(neu);
         return $"AVTERZEUGEN Baustein | Thema {w["Name"]} | aus {w["Datei"]} (SHA256 {ist[..16]} …)";
+    }
+
+    /// <summary>Mitgebrachte Satzkopien entfernen (nach dem Umhängen der Themen).</summary>
+    public static List<string> Aufraeumen(Database db, Transaction tr)
+    {
+        var dict = new Aecp.DictionaryPropertySetDefinitions(db);
+        var aus = new List<string>();
+        foreach (var n in Mitgebracht)
+        {
+            tr.GetObject(dict.GetAt(n), OpenMode.ForWrite).Erase();
+            aus.Add($"AVTERZEUGEN Baustein | mitgebrachte Satzkopie {n} entfernt");
+        }
+        Mitgebracht.Clear();
+        return aus;
     }
 
     static HashSet<string> Satznamen(Database db)

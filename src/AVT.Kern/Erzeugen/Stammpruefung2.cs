@@ -20,11 +20,13 @@ internal static class Stammpruefung2
         var saetze = Feldkatalog.SaetzeLesen(Tabelle.Lies(Path.Combine(s, "Saetze.csv"), "ID", "Satz", "Art", "GiltFuer"));
         var felder = Feldkatalog.FelderLesen(Tabelle.Lies(Path.Combine(s, "Feldkatalog.csv"), "Satz", "Feld", "Typ"));
         var listen = Feldkatalog.ListenLesen(Tabelle.Lies(Path.Combine(s, "Wertelisten.csv"), "Liste", "Nr", "Wert"));
-        var ld = new AecDb.DictionaryListDefinition(db);
+        // Listen direkt aus dem Wörterbuch lesen: der AEC-Zugriff legt sonst eine Standardliste an (nur lesen!).
+        var nod = (DBDictionary)tr.GetObject(db.NamedObjectsDictionaryId, OpenMode.ForRead);
+        var ld = nod.Contains("AEC_LIST_DEFINITIONS") ? (DBDictionary)tr.GetObject(nod.GetAt("AEC_LIST_DEFINITIONS"), OpenMode.ForRead) : null;
         foreach (var (name, werte) in listen)
         {
             var voll = Erzeugen.Saetze.ListenVorsilbe + name;
-            if (!ld.Has(voll, tr)) { F($"Liste {voll} fehlt"); continue; }
+            if (ld is null || !ld.Contains(voll)) { F($"Liste {voll} fehlt"); continue; }
             var l = (AecDb.ListDefinition)tr.GetObject(ld.GetAt(voll), OpenMode.ForRead);
             var ist = l.GetListItems().Cast<ObjectId>().Select(i => ((AecDb.DictionaryRecord)tr.GetObject(i, OpenMode.ForRead)).Name).ToList();
             if (!ist.SequenceEqual(werte)) F($"Liste {voll}: {string.Join("/", ist)} statt {string.Join("/", werte)}");
@@ -126,7 +128,8 @@ internal static class Stammpruefung2
             if (format is null) F($"Layout {l.LayoutName}: Rahmenformat ≠ {w["Rahmenformat"]}");
             var fenster = raum.Cast<ObjectId>().Select(i => tr.GetObject(i, OpenMode.ForRead)).OfType<Viewport>().Count();
             var sollF = Fenster.Lies(w.GetValueOrDefault("Ansichtsfenster") ?? "").Count;
-            if (fenster != sollF) F($"Layout {l.LayoutName}: {fenster} Ansichtsfenster statt {sollF}");
+            // + 1 Papierbereichs-Ansichtsfenster auf Layer 0.
+            if (fenster != sollF + 1) F($"Layout {l.LayoutName}: {fenster} Ansichtsfenster statt {sollF} + 1 (Papierbereich)");
         }
         foreach (var e in dict)
         {

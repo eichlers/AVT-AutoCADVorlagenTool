@@ -16,6 +16,7 @@ public sealed record Themenzeile(string Thema, int Nr, string Komponente, string
 internal static class Themen
 {
     public const string BausteinThema = Standard.Kuerzel + "_Thema_Baustein";
+    public const string Leitungsstilsatz = Standard.Kuerzel + "_Leitungsstil";
 
     public static IReadOnlyList<Themenzeile> Lesen(Tabelle t) => t.Zeilen.Select(z => z.Werte).Select(w => new Themenzeile(
         w["Thema"], int.Parse(w["Nr"], System.Globalization.CultureInfo.InvariantCulture), w["Komponente"], w.GetValueOrDefault("Feld") ?? "", w.GetValueOrDefault("Wert") ?? "",
@@ -59,6 +60,7 @@ internal static class Themen
             aus.Add($"AVTERZEUGEN Thema | {g.Key} | {t.DisplayThemeComponents.Count} Komponenten");
         }
         baustein.Erase();
+        aus.AddRange(Bausteine.Aufraeumen(db, tr));
         return aus;
     }
 

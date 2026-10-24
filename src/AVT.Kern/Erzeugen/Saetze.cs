@@ -114,6 +114,13 @@ internal static class Saetze
             ids[name] = l.ObjectId;
             aus.Add($"AVTERZEUGEN Liste | {voll} | {werte.Count} Werte");
         }
+        // MEP legt beim Zugriff auf das Listenwörterbuch eine Standardliste mit leerem Verweis an – derselbe AUDIT-Fehler wie in
+        // der Leervorlage (B1, Befund 24.10.2026). Sie gehört nicht zum Standard und wird entfernt.
+        if (dict.Has("Standard", tr) && !ids.Values.Contains(dict.GetAt("Standard")))
+        {
+            tr.GetObject(dict.GetAt("Standard"), OpenMode.ForWrite).Erase();
+            aus.Add("AVTERZEUGEN Liste | Standard (von MEP angelegt, leer) entfernt");
+        }
         return ids;
     }
 
