@@ -46,6 +46,7 @@ public static class Feldkatalog
             if (!Typen.Contains(f.Typ)) aus.Add($"{wo}: Typ „{f.Typ}“ unbekannt");
             if (f.Typ == "Liste" && !listen.ContainsKey(f.Liste)) aus.Add($"{wo}: Liste „{f.Liste}“ fehlt in Wertelisten.csv");
             if (f.Typ == "Liste" && f.Vorgabe.Length > 0 && listen.TryGetValue(f.Liste, out var werte) && !werte.Contains(f.Vorgabe)) aus.Add($"{wo}: Vorgabe „{f.Vorgabe}“ nicht in Liste {f.Liste}");
+            if (f.Typ == "Liste" && f.Vorgabe.Length == 0) aus.Add($"{wo}: Listenfeld ohne Vorgabe (AUDIT meldet sonst eNullObjectId)");
             if (f.Typ != "Liste" && f.Liste.Length > 0) aus.Add($"{wo}: Liste angegeben, Typ ist {f.Typ}");
             if (f.Typ is "Auto" or "Formel" && f.Quelle.Length == 0) aus.Add($"{wo}: Quelle fehlt");
             if (f.Typ is "Formel")
@@ -178,19 +179,9 @@ internal static class Saetze
             case "Liste":
                 p.DataType = Autodesk.Aec.PropertyData.DataType.List;
                 p.ListDefinitionId = listen[f.Liste];
-                // Leere Vorgabe als „nicht angegeben“ – sonst zeigt die Vorgabe auf kein Listenelement und AUDIT meldet
-                // „Eigenschaftssatzdefinition (Liste) eNullObjectId“ (Befund 24.10.2026, ebenso in der DACH-Leervorlage).
-                // Vorgabe einer Liste = ID des Listenelements, nicht der Text: mit Text bleibt der Verweis leer und AUDIT meldet
-                // „Eigenschaftssatzdefinition (Liste) eNullObjectId“ je Satz mit Listen-Vorgabe (Befund 24.10.2026).
-                if (f.Vorgabe.Length > 0)
-                {
-                    using var tr2 = d.Database.TransactionManager.StartOpenCloseTransaction();
-                    var liste = (AecDb.ListDefinition)tr2.GetObject(listen[f.Liste], OpenMode.ForRead);
-                    var element = liste.GetListItem(f.Vorgabe);
-                    if (element.IsNull) throw new InvalidDataException($"{f.Satz}.{f.Feld}: Vorgabe „{f.Vorgabe}“ nicht in Liste {f.Liste}");
-                    p.DefaultData = element;
-                }
-                else p.DefaultIsUnspecified = true;
+                // Vorgabe als Text (wie RI 9.1/ANA). Ein Listenfeld OHNE Vorgabe ergibt in AUDIT „Eigenschaftssatzdefinition (Liste)
+                // eNullObjectId“ (Befund 24.10.2026, auch DACH: MEPInterference.Status) – darum prüft der Feldkatalog: Liste braucht Vorgabe.
+                p.DefaultData = f.Vorgabe;
                 break;
             case "JaNein":
                 p.DataType = Autodesk.Aec.PropertyData.DataType.TrueFalse;

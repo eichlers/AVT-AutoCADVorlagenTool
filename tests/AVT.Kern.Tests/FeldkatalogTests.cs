@@ -41,6 +41,7 @@ public class FeldkatalogTests
     [InlineData("EHS_Bauteil;X;X;Liste;;Farbe;;;ja", "Liste „Farbe“ fehlt")]
     [InlineData("EHS_Bauteil;X;X;Liste;;Status;alt;;ja", "Vorgabe „alt“")]
     [InlineData("EHS_Bauteil;X;X;Auto;;;;;ja", "Quelle fehlt")]
+    [InlineData("EHS_Bauteil;X;X;Liste;;Status;;;ja", "ohne Vorgabe")]
     [InlineData("EHS_Bauteil;X;X;Formel;;;;RESULT = [Gibtsnicht];ja", "unbekanntes Feld")]
     [InlineData("TAGBauteil;X;X;Text;;;;;ja", "Satz fehlt")]
     public void Regelverstoss_wird_gemeldet(string zeile, string erwartet) =>
