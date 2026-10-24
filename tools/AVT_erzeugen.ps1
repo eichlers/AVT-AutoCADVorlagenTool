@@ -8,7 +8,9 @@
     [string] $Stammdaten = '',
     [string] $Systeme = '',
     # Ein zweiter, unabhaengiger Bau zum Vergleich der Inhaltspruefsumme.
-    [switch] $Zweimal
+    [switch] $Zweimal,
+    # Mehrere unabhaengige Baulaeufe (Auftrag AMK: 3 Laeufe); -Zweimal = 2.
+    [int] $Laeufe = 1
 )
 # AVT 0.4.0 Teil 1 "Erzeugen": Entwurf <Kuerzel> <Fassung> aus Stammdaten auf einer Kopie der Leervorlage, dann am Ergebnis
 # Inhaltsauszug, Pruefen gegen die Stammdaten und AUDIT (nur melden). Nur C:\Temp, nichts ins Schema-Repo. Nie waehrend eines MEP-Slots.
